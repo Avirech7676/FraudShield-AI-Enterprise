@@ -1,0 +1,36 @@
+                                    FraudShield AI Enterprise
+
+                                           USER
+                                             │
+                                             ▼
+                                    Streamlit Dashboard
+                                             │
+        ┌────────────────────────────────────┼────────────────────────────────────┐
+        ▼                                    ▼                                    ▼
+ Single Prediction                   Batch Prediction                    AI Investigation
+        │                                    │                                    │
+        └────────────────────────────────────┼────────────────────────────────────┘
+                                             ▼
+                                      FastAPI Backend
+                                             │
+          ┌──────────────────────────────────┼───────────────────────────────────────┐
+          ▼                                  ▼                                       ▼
+     ML Predictor                      Risk Engine                           SHAP Explainer
+          │                                  │                                       │
+          └──────────────────────────────────┼───────────────────────────────────────┘
+                                             ▼
+                                    MongoDB Database
+                                             │
+           ┌─────────────────────────────────┼─────────────────────────────────┐
+           ▼                                 ▼                                 ▼
+    Transactions                      Predictions                      Audit Logs
+           │
+           ▼
+      Alerts Collection
+
+                                             │
+                                             ▼
+                                        Groq LLM
+                                             │
+                                             ▼
+                                AI Fraud Investigation Report

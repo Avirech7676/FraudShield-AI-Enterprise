@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7
+
+    container_name: fraudshield-mongodb
+
+    restart: always
+
+    ports:
+      - "27017:27017"
+
+    volumes:
+      - mongo_data:/data/db
+
+  api:
+    build: .
+
+    container_name: fraudshield-api
+
+    restart: always
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      - mongodb
+
+    env_file:
+      - .env
+
+    volumes:
+      - .:/app
+
+    command: >
+      python -m uvicorn
+      app.api.main:app
+      --host 0.0.0.0
+      --port 8000
+
+  dashboard:
+    build: .
+
+    container_name: fraudshield-dashboard
+
+    restart: always
+
+    ports:
+      - "8501:8501"
+
+    depends_on:
+      - api
+
+    env_file:
+      - .env
+
+    volumes:
+      - .:/app
+
+    command: >
+      streamlit run
+      app/dashboard/main.py
+      --server.address=0.0.0.0
+      --server.port=8501
+
+volumes:
+  mongo_data:

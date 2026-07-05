@@ -1,0 +1,48 @@
+# Virtual Environment
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML Models
+models/
+*.joblib
+*.pkl
+
+# Logs
+logs/
+*.log
+
+# Reports
+reports/
+
+# Environment Variables
+.env
+
+# VS Code
+.vscode/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+
+# Dataset
+data/raw/creditcard.csv
+
+# Model files
+*.pkl
+
+# Reports
+reports/
+
+# Virtual environment
+.venv/
+
+# Environment variables
+.env
