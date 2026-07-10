@@ -12,6 +12,13 @@ db = MongoDBConnection().connect()
 
 repository = FraudRepository(db)
 
+
+@router.get("/users")
+def get_users():
+
+    return repository.get_all_users()
+
+
 @router.post("/users")
 def add_user(user: dict):
 

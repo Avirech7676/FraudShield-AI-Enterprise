@@ -1,6 +1,3 @@
-import numpy as np
-
-
 class EnterpriseRiskEngine:
 
     """
@@ -19,15 +16,19 @@ class EnterpriseRiskEngine:
 
         self.weights = {
 
-            "ml_probability":0.45,
+            "ml_probability":0.35,
 
-            "rule_score":0.20,
+            "rule_score":0.15,
 
-            "anomaly_score":0.15,
+            "behavior_score":0.15,
+
+            "anomaly_score":0.10,
 
             "device_trust":0.10,
 
-            "velocity_score":0.05,
+            "geo_risk":0.05,
+
+            "merchant_risk":0.05,
 
             "fraud_history":0.05
 
@@ -51,11 +52,15 @@ class EnterpriseRiskEngine:
 
         rule_score,
 
+        behavior_score,
+
         anomaly_score,
 
         device_trust,
 
-        velocity_score,
+        geo_risk,
+
+        merchant_risk,
 
         fraud_history
 
@@ -75,6 +80,10 @@ class EnterpriseRiskEngine:
 
             +
 
+            behavior_score*self.weights["behavior_score"]
+
+            +
+
             anomaly_score*self.weights["anomaly_score"]
 
             +
@@ -83,7 +92,11 @@ class EnterpriseRiskEngine:
 
             +
 
-            velocity_score*self.weights["velocity_score"]
+            geo_risk*self.weights["geo_risk"]
+
+            +
+
+            merchant_risk*self.weights["merchant_risk"]
 
             +
 
@@ -195,15 +208,24 @@ class EnterpriseRiskEngine:
 
         rule_score,
 
-        anomaly_score,
+        behavior_score=0,
 
-        device_trust,
+        anomaly_score=0,
 
-        velocity_score,
+        device_trust=80,
 
-        fraud_history
+        velocity_score=0,
+
+        geo_risk=0,
+
+        merchant_risk=0,
+
+        fraud_history=0
 
     ):
+
+        if behavior_score == 0:
+            behavior_score = velocity_score
 
         score=self.calculate_risk_score(
 
@@ -211,11 +233,15 @@ class EnterpriseRiskEngine:
 
             rule_score,
 
+            behavior_score,
+
             anomaly_score,
 
             device_trust,
 
-            velocity_score,
+            geo_risk,
+
+            merchant_risk,
 
             fraud_history
 
@@ -233,6 +259,17 @@ class EnterpriseRiskEngine:
 
             "Recommended Action":action["Action"],
 
-            "Priority":action["Priority"]
+            "Priority":action["Priority"],
+
+            "Components": {
+                "ML Probability": round(ml_probability * 100, 2),
+                "Rule Engine": self.normalize(rule_score),
+                "Behavior Engine": self.normalize(behavior_score),
+                "Anomaly Score": self.normalize(anomaly_score),
+                "Device Trust": self.normalize(device_trust),
+                "Geo Risk": self.normalize(geo_risk),
+                "Merchant Risk": self.normalize(merchant_risk),
+                "Fraud History": self.normalize(fraud_history)
+            }
 
         }

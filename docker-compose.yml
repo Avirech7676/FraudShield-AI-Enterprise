@@ -1,10 +1,34 @@
 version: "3.9"
 
 services:
+  api:
+    build: .
+
+    ports:
+      - "8000:8000"
+
+    env_file:
+      - .env
+
+    depends_on:
+      - mongodb
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+
+    ports:
+      - "5173:80"
+
+    depends_on:
+      - api
+
   mongodb:
     image: mongo:7
 
-    container_name: fraudshield-mongodb
+    container_name: fraudshield-db
 
     restart: always
 
@@ -13,56 +37,6 @@ services:
 
     volumes:
       - mongo_data:/data/db
-
-  api:
-    build: .
-
-    container_name: fraudshield-api
-
-    restart: always
-
-    ports:
-      - "8000:8000"
-
-    depends_on:
-      - mongodb
-
-    env_file:
-      - .env
-
-    volumes:
-      - .:/app
-
-    command: >
-      python -m uvicorn
-      app.api.main:app
-      --host 0.0.0.0
-      --port 8000
-
-  dashboard:
-    build: .
-
-    container_name: fraudshield-dashboard
-
-    restart: always
-
-    ports:
-      - "8501:8501"
-
-    depends_on:
-      - api
-
-    env_file:
-      - .env
-
-    volumes:
-      - .:/app
-
-    command: >
-      streamlit run
-      app/dashboard/main.py
-      --server.address=0.0.0.0
-      --server.port=8501
 
 volumes:
   mongo_data:

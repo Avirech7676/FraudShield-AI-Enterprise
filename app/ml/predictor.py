@@ -1,96 +1,127 @@
 import os
+import time
 import joblib
-import numpy as np
 import pandas as pd
+import numpy as np
 
-
+from app.config.settings import settings
+from app.config.logging_config import logger
+from app.ml.model_registry import ModelRegistry
+from app.ml.version_manager import VersionManager
 class FraudPredictor:
 
-    def __init__(
-        self,
-        model_path="models/best_model.joblib",
-        preprocessor_path="models/preprocessor.joblib"
-    ):
+    def __init__(self):
+
+        self.registry = ModelRegistry()
 
         self.model = None
         self.preprocessor = None
 
-        self.model_path = model_path
-        self.preprocessor_path = preprocessor_path
+        self.model_path = None
+        self.preprocessor_path = settings.PREPROCESSOR
+
+        self.model_version = "Development"
 
         self.load()
-
     ############################################################
 
     def load(self):
 
-        if not os.path.exists(self.model_path):
+        logger.info("=" * 60)
+        logger.info("Loading Enterprise Prediction Engine")
+        logger.info("=" * 60)
 
-            raise FileNotFoundError(
-                f"Model not found : {self.model_path}"
+        try:
+
+            production = self.registry.production_model()
+
+            if production:
+
+                self.model_path = production["model_path"]
+                self.model_version = production["version"]
+
+                logger.info(
+                    f"Using Production Model : {self.model_version}"
+                )
+
+            else:
+
+                logger.warning(
+                    "No production model registered."
+                )
+
+                self.model_path = settings.BEST_MODEL
+
+            if not os.path.exists(self.model_path):
+
+                raise FileNotFoundError(
+                    f"Model not found : {self.model_path}"
+                )
+
+            if not os.path.exists(self.preprocessor_path):
+
+                raise FileNotFoundError(
+                    f"Preprocessor not found : {self.preprocessor_path}"
+                )
+
+            self.model = joblib.load(
+                self.model_path
             )
 
-        if not os.path.exists(self.preprocessor_path):
-
-            raise FileNotFoundError(
-                f"Preprocessor not found : {self.preprocessor_path}"
+            self.preprocessor = joblib.load(
+                self.preprocessor_path
             )
 
-        self.model = joblib.load(self.model_path)
+            logger.info(
+                "Prediction Engine Loaded Successfully"
+            )
 
-        self.preprocessor = joblib.load(
-            self.preprocessor_path
-        )
+        except Exception as e:
 
-        print("Enterprise Prediction Engine Loaded")
+            logger.exception(
+                f"Unable to load prediction engine : {e}"
+            )
+
+            raise
 
     ############################################################
 
     def preprocess(self, transaction):
 
-        if isinstance(transaction, dict):
+        try:
 
-            transaction = pd.DataFrame([transaction])
+            if isinstance(transaction, dict):
 
-        elif isinstance(transaction, pd.Series):
+                transaction = pd.DataFrame([transaction])
 
-            transaction = pd.DataFrame([transaction])
+            elif isinstance(transaction, pd.Series):
 
-        elif not isinstance(transaction, pd.DataFrame):
+                transaction = pd.DataFrame([transaction])
 
-            raise Exception("Input must be DataFrame or Dictionary")
+            elif not isinstance(transaction, pd.DataFrame):
 
-        return self.preprocessor.transform(transaction)
+                raise ValueError(
+                    "Input must be DataFrame, Series or Dictionary."
+                )
 
-    ############################################################
+            from app.features.feature_engineering import FeatureEngineering
+            engineer = FeatureEngineering(transaction)
+            enriched_df = engineer.run_pipeline()
+            if "Class" in enriched_df.columns:
+                enriched_df = enriched_df.drop(columns=["Class"])
 
-    def calculate_risk_tier(
-        self,
-        probability
-    ):
+            transformed = self.preprocessor.transform(
+                enriched_df
+            )
 
-        score = probability * 100
+            return transformed
 
-        if score < 20:
+        except Exception as e:
 
-            return "Very Low"
-
-        elif score < 40:
-
-            return "Low"
-
-        elif score < 60:
-
-            return "Medium"
-
-        elif score < 80:
-
-            return "High"
-
-        else:
-
-            return "Critical"
-
+            logger.exception(
+                f"Preprocessing Failed : {e}"
+            )
+            raise
     ############################################################
 
     def recommended_action(
@@ -135,114 +166,155 @@ class FraudPredictor:
 
     ############################################################
 
-    def predict(
-        self,
-        transaction
-    ):
-
-        X = self.preprocess(transaction)
-
-        probability = float(
-
-            self.model.predict_proba(X)[0][1]
-
-        )
-
-        prediction = int(
-
-            self.model.predict(X)[0]
-
-        )
-
-        risk_score = round(
-
-            probability * 100,
-
-            2
-
-        )
-
-        tier = self.calculate_risk_tier(
-
-            probability
-
-        )
-
-        confidence = self.confidence_score(
-
-            probability
-
-        )
-
-        result = {
-
-            "Prediction":
-
-                "Fraud"
-
-                if prediction == 1
-
-                else "Legitimate",
-
-            "Fraud_Probability":
-
-                round(probability,4),
-
-            "Risk_Score":
-
-                risk_score,
-
-            "Risk_Tier":
-
-                tier,
-
-            "Confidence":
-
-                confidence,
-
-            "Recommended_Action":
-
-                self.recommended_action(tier)
-
-        }
-
-        return result
+    def calculate_risk_tier(self, probability):
+        score = probability * 100
+        if score < 20:
+            return "Very Low"
+        elif score < 40:
+            return "Low"
+        elif score < 60:
+            return "Medium"
+        elif score < 80:
+            return "High"
+        else:
+            return "Critical"
 
     ############################################################
 
-    def batch_predict(
-        self,
-        dataframe
-    ):
+    def predict(self, transaction):
 
-        X = self.preprocessor.transform(
+        start = time.perf_counter()
 
-            dataframe
+        try:
 
-        )
+            X = self.preprocess(transaction)
 
-        probabilities = self.model.predict_proba(X)[:,1]
+            probability = float(
+                self.model.predict_proba(X)[0][1]
+            )
 
-        predictions = self.model.predict(X)
+            prediction = int(
+                self.model.predict(X)[0]
+            )
 
-        output = dataframe.copy()
+            risk_score = round(
+                probability * 100,
+                2
+            )
 
-        output["Prediction"] = predictions
+            tier = self.calculate_risk_tier(
+                probability
+            )
 
-        output["Fraud_Probability"] = probabilities
+            confidence = self.confidence_score(
+                probability
+            )
 
-        output["Risk_Score"] = probabilities * 100
+            latency = round(
+                (time.perf_counter() - start) * 1000,
+                2
+            )
 
-        output["Risk_Tier"] = output["Fraud_Probability"].apply(
+            logger.info(
+                f"Prediction completed in {latency} ms"
+            )
 
-            self.calculate_risk_tier
+            return {
 
-        )
+                "Prediction":
+                    "Fraud"
+                    if prediction == 1
+                    else "Legitimate",
 
-        output["Recommended_Action"] = output["Risk_Tier"].apply(
+                "Fraud_Probability":
+                    round(probability, 4),
 
-            self.recommended_action
+                "Risk_Score":
+                    risk_score,
 
-        )
+                "Risk_Tier":
+                    tier,
 
-        return output
+                "Confidence":
+                    confidence,
+
+                "Recommended_Action":
+                    self.recommended_action(tier),
+
+                "Model_Version":
+                    self.model_version,
+
+                "Latency_ms":
+                    latency
+
+            }
+
+        except Exception as e:
+
+            logger.exception(
+                f"Prediction Failed : {e}"
+            )
+
+            raise
+
+    ############################################################
+
+    def batch_predict(self, dataframe):
+
+        start = time.perf_counter()
+
+        try:
+
+            X = self.preprocessor.transform(dataframe)
+
+            probabilities = self.model.predict_proba(X)[:, 1]
+
+            predictions = self.model.predict(X)
+
+            output = dataframe.copy()
+
+            output["Prediction"] = np.where(
+                predictions == 1,
+                "Fraud",
+                "Legitimate"
+            )
+
+            output["Fraud_Probability"] = probabilities
+
+            output["Risk_Score"] = probabilities * 100
+
+            output["Risk_Tier"] = output[
+                "Fraud_Probability"
+            ].apply(
+                self.calculate_risk_tier
+            )
+
+            output["Recommended_Action"] = output[
+                "Risk_Tier"
+            ].apply(
+                self.recommended_action
+            )
+
+            output["Model_Version"] = self.model_version
+
+            latency = round(
+                (time.perf_counter() - start) * 1000,
+                2
+            )
+
+            logger.info(
+                f"Batch Prediction Completed ({len(output)} records) in {latency} ms"
+            )
+
+            return output
+
+        except Exception as e:
+
+            logger.exception(
+                f"Batch Prediction Failed : {e}"
+            )
+
+            raise    
+        
+if __name__ == "__main__":
+    ...

@@ -5,12 +5,17 @@
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Jupyter
 .ipynb_checkpoints/
 
 # ML Models
 models/
+models/*.joblib
 *.joblib
 *.pkl
 
@@ -26,14 +31,23 @@ reports/
 
 # VS Code
 .vscode/
+.idea/
 
 # OS Files
 .DS_Store
 Thumbs.db
 
+# Local databases
+*.db
+
 
 # Dataset
 data/raw/creditcard.csv
+data/fraud.csv
+data/*.csv
+
+# CatBoost training artifacts
+catboost_info/
 
 # Model files
 *.pkl

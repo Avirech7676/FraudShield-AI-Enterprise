@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 
-
 class DataLoader:
     """
     Enterprise Data Loader
@@ -167,3 +166,23 @@ class DataLoader:
         self.statistical_summary()
 
         self.target_distribution()
+
+##########################################################
+# Convenience Function
+##########################################################
+
+def load_dataset(
+    filepath="data/raw/creditcard.csv"
+):
+    """
+    Load the default fraud dataset.
+
+    Returns:
+        pandas.DataFrame
+    """
+
+    loader = DataLoader(filepath)
+
+    df = loader.load_dataset()
+
+    return df

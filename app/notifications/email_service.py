@@ -7,6 +7,8 @@ class EmailService:
 
     @staticmethod
     def send(subject, body, receiver):
+        if not SMTP_SERVER or not EMAIL_ADDRESS or not EMAIL_PASSWORD:
+            raise ValueError("Email credentials are not configured")
 
         msg = MIMEText(body)
 

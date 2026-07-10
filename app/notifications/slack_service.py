@@ -6,8 +6,10 @@ class SlackService:
 
     @staticmethod
     def send(message):
+        if not SLACK_WEBHOOK:
+            raise ValueError("SLACK_WEBHOOK is not configured")
 
-        requests.post(
+        response = requests.post(
 
             SLACK_WEBHOOK,
 
@@ -15,6 +17,9 @@ class SlackService:
 
                 "text": message
 
-            }
+            },
+
+            timeout=10
 
         )
+        response.raise_for_status()

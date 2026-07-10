@@ -6,8 +6,10 @@ class TeamsService:
 
     @staticmethod
     def send(message):
+        if not TEAMS_WEBHOOK:
+            raise ValueError("TEAMS_WEBHOOK is not configured")
 
-        requests.post(
+        response = requests.post(
 
             TEAMS_WEBHOOK,
 
@@ -15,6 +17,9 @@ class TeamsService:
 
                 "text": message
 
-            }
+            },
+
+            timeout=10
 
         )
+        response.raise_for_status()

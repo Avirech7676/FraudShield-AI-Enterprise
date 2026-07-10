@@ -1,19 +1,23 @@
 import os
+import time
 import joblib
-import numpy as np
 import pandas as pd
 
 from app.features.feature_engineering import FeatureEngineering
+from app.config.settings import settings
+from app.config.logging_config import logger
 
 
 class EnterpriseFraudPredictor:
 
     def __init__(self):
 
-        self.model_path = "models/best_model.joblib"
-        self.preprocessor_path = "models/preprocessor.joblib"
+        self.model_path = settings.PRODUCTION_MODEL
+
+        self.preprocessor_path = settings.PREPROCESSOR
 
         self.model = None
+
         self.preprocessor = None
 
         self.load_artifacts()
@@ -22,42 +26,107 @@ class EnterpriseFraudPredictor:
 
     def load_artifacts(self):
 
-        print("=" * 60)
-        print("LOADING TRAINED ARTIFACTS")
-        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info("LOADING TRAINED ARTIFACTS")
+        logger.info("=" * 60)
 
-        if not os.path.exists(self.model_path):
-            raise FileNotFoundError(
-                "best_model.joblib not found."
+        try:
+
+            if not os.path.exists(self.model_path):
+
+                logger.warning(
+
+                    "Production model not found. Trying best model."
+
+                )
+
+                self.model_path = settings.BEST_MODEL
+
+            if not os.path.exists(self.model_path):
+
+                raise FileNotFoundError(
+
+                    f"Model file not found : {self.model_path}"
+
+                )
+
+            if not os.path.exists(self.preprocessor_path):
+
+                raise FileNotFoundError(
+
+                    f"Preprocessor not found : {self.preprocessor_path}"
+
+                )
+
+            self.model = joblib.load(
+
+                self.model_path
+
             )
 
-        if not os.path.exists(self.preprocessor_path):
-            raise FileNotFoundError(
-                "preprocessor.joblib not found."
+            self.preprocessor = joblib.load(
+
+                self.preprocessor_path
+
             )
 
-        self.model = joblib.load(self.model_path)
+            logger.info(
 
-        self.preprocessor = joblib.load(self.preprocessor_path)
+                "Model Loaded Successfully"
 
-        print("Model Loaded Successfully")
+            )
 
-        print("Preprocessor Loaded Successfully")
+            logger.info(
+
+                "Preprocessor Loaded Successfully"
+
+            )
+
+        except Exception as e:
+
+            logger.exception(
+
+                f"Unable to load artifacts : {e}"
+
+            )
+
+            raise
 
     #########################################################
 
     def preprocess(self, dataframe):
 
-      engineer = FeatureEngineering(dataframe)
+        try:
 
-      dataframe = engineer.run_pipeline()
+            engineer = FeatureEngineering(dataframe)
 
-      if "Class" in dataframe.columns:
-        dataframe = dataframe.drop(columns=["Class"])
+            dataframe = engineer.run_pipeline()
 
-      transformed = self.preprocessor.transform(dataframe)
+            if "Class" in dataframe.columns:
 
-      return transformed
+                dataframe = dataframe.drop(
+
+                    columns=["Class"]
+
+                )
+
+            transformed = self.preprocessor.transform(
+
+                dataframe
+
+            )
+
+            return transformed
+
+        except Exception as e:
+
+            logger.exception(
+
+                f"Preprocessing Failed : {e}"
+
+            )
+
+            raise
 
     #########################################################
 
@@ -66,18 +135,23 @@ class EnterpriseFraudPredictor:
         score = probability * 100
 
         if score < 20:
+
             tier = "Very Low"
 
         elif score < 40:
+
             tier = "Low"
 
         elif score < 60:
+
             tier = "Medium"
 
         elif score < 80:
+
             tier = "High"
 
         else:
+
             tier = "Critical"
 
         return score, tier
@@ -86,83 +160,196 @@ class EnterpriseFraudPredictor:
 
     def predict_single(self, dataframe):
 
-        processed = self.preprocess(
-            dataframe
-        )
+        start = time.perf_counter()
 
-        probability = self.model.predict_proba(
-            processed
-        )[0][1]
+        try:
 
-        prediction = self.model.predict(
-            processed
-        )[0]
+            processed = self.preprocess(
 
-        score, tier = self.calculate_risk(
-            probability
-        )
+                dataframe
 
-        result = {
+            )
 
-            "Prediction":
-                "Fraud"
-                if prediction == 1
-                else "Genuine",
+            probability = self.model.predict_proba(
 
-            "Fraud_Probability":
-                round(float(probability), 4),
+                processed
 
-            "Risk_Score":
-                round(float(score), 2),
+            )[0][1]
 
-            "Risk_Tier":
-                tier
+            prediction = self.model.predict(
 
-        }
+                processed
 
-        return result
+            )[0]
+
+            score, tier = self.calculate_risk(
+
+                probability
+
+            )
+
+            latency = round(
+
+                (time.perf_counter() - start) * 1000,
+
+                2
+
+            )
+
+            logger.info(
+
+                f"Prediction Completed in {latency} ms"
+
+            )
+
+            return {
+
+                "Prediction":
+
+                    "Fraud"
+
+                    if prediction == 1
+
+                    else "Genuine",
+
+                "Fraud_Probability":
+
+                    round(
+
+                        float(probability),
+
+                        4
+
+                    ),
+
+                "Risk_Score":
+
+                    round(
+
+                        float(score),
+
+                        2
+
+                    ),
+
+                "Risk_Tier":
+
+                    tier,
+
+                "Latency_ms":
+
+                    latency
+
+            }
+
+        except Exception as e:
+
+            logger.exception(
+
+                f"Prediction Failed : {e}"
+
+            )
+
+            raise
 
     #########################################################
 
     def predict_batch(self, dataframe):
 
-        processed = self.preprocess(
-            dataframe
-        )
+        start = time.perf_counter()
 
-        probabilities = self.model.predict_proba(
-            processed
-        )[:, 1]
+        try:
 
-        predictions = self.model.predict(
-            processed
-        )
+            processed = self.preprocess(
 
-        results = []
+                dataframe
 
-        for pred, prob in zip(
-            predictions,
-            probabilities
-        ):
+            )
 
-            score, tier = self.calculate_risk(prob)
+            probabilities = self.model.predict_proba(
 
-            results.append({
+                processed
 
-                "Prediction":
-                    "Fraud"
-                    if pred == 1
-                    else "Genuine",
+            )[:, 1]
 
-                "Fraud_Probability":
-                    round(float(prob), 4),
+            predictions = self.model.predict(
 
-                "Risk_Score":
-                    round(float(score), 2),
+                processed
 
-                "Risk_Tier":
-                    tier
+            )
 
-            })
+            results = []
 
-        return pd.DataFrame(results)
+            for pred, prob in zip(
+
+                predictions,
+
+                probabilities
+
+            ):
+
+                score, tier = self.calculate_risk(prob)
+
+                results.append(
+
+                    {
+
+                        "Prediction":
+
+                            "Fraud"
+
+                            if pred == 1
+
+                            else "Genuine",
+
+                        "Fraud_Probability":
+
+                            round(
+
+                                float(prob),
+
+                                4
+
+                            ),
+
+                        "Risk_Score":
+
+                            round(
+
+                                float(score),
+
+                                2
+
+                            ),
+
+                        "Risk_Tier":
+
+                            tier
+
+                    }
+
+                )
+
+            latency = round(
+
+                (time.perf_counter() - start) * 1000,
+
+                2
+
+            )
+
+            logger.info(
+
+                f"Batch Prediction Completed in {latency} ms"
+
+            )
+
+            return pd.DataFrame(results)
+
+        except Exception as e:
+
+            logger.exception(
+
+                f"Batch Prediction Failed : {e}"
+            )
+            raise

@@ -6,6 +6,8 @@ import requests
 from datetime import datetime
 from pymongo import MongoClient
 
+from app.config.settings import settings
+
 
 class SystemMonitor:
 
@@ -15,7 +17,7 @@ class SystemMonitor:
 
     def cpu_usage(self):
 
-        return psutil.cpu_percent(interval=1)
+        return psutil.cpu_percent(interval=None)
 
     def memory_usage(self):
 
@@ -39,17 +41,18 @@ class SystemMonitor:
 
             client = MongoClient(
 
-                "mongodb://localhost:27017",
+                settings.MONGODB_URI,
 
-                serverSelectionTimeoutMS=3000
+                serverSelectionTimeoutMS=1000
 
             )
 
             client.server_info()
+            client.close()
 
             return "Online"
 
-        except:
+        except Exception:
 
             return "Offline"
 
@@ -59,13 +62,14 @@ class SystemMonitor:
 
             response = requests.get(
 
-                "http://127.0.0.1:8000/health"
+                "http://127.0.0.1:8000/health",
+                timeout=1.5
 
             )
 
             return "Online" if response.status_code == 200 else "Offline"
 
-        except:
+        except Exception:
 
             return "Offline"
 
@@ -75,7 +79,7 @@ class SystemMonitor:
 
             "Loaded"
 
-            if os.path.exists("models/fraud_model.pkl")
+            if os.path.exists(settings.PRODUCTION_MODEL)
 
             else "Not Found"
 
@@ -88,3 +92,23 @@ class SystemMonitor:
             return "Configured"
 
         return "Missing"
+
+    def model_version(self):
+
+        return settings.MODEL_VERSION
+
+    def snapshot(self):
+
+        return {
+            "cpu_usage": self.cpu_usage(),
+            "memory_usage": self.memory_usage(),
+            "disk_usage": self.disk_usage(),
+            "mongodb": self.mongodb_status(),
+            "fastapi": self.fastapi_status(),
+            "model": self.model_status(),
+            "model_version": self.model_version(),
+            "python_version": self.python_version(),
+            "operating_system": self.operating_system(),
+            "groq": self.groq_status(),
+            "timestamp": datetime.utcnow().isoformat()
+        }
