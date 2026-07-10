@@ -69,7 +69,52 @@ JWT_SECRET_KEY=change-me
 JWT_ALGORITHM=HS256
 GROQ_API_KEY=
 ```
+## 🖥️ Frontend
+Layer	Technology	Purpose
+Framework	React 19 (TypeScript)	Component-based UI
+Build Tool	Vite 8	Dev server & production bundling
+Authentication	Clerk React SDK (@clerk/react)	Sign-in, sign-up, session management, role-based access (Admin, Fraud Analyst, Manager, Auditor)
+Styling	Vanilla CSS (
+App.css
+)	Custom dark-theme design system
+Linting	OxLint	Fast TypeScript/JS linting
+Frontend Pages/Views
+Overview · Predict · Alerts · Cases · AI Reports · Analytics · Feedback · Settings
 
+## 🔧 Backend (FastAPI)
+Layer	Technology	Purpose
+Web Framework	FastAPI	REST API server
+Server	Uvicorn	ASGI production server
+Database	MongoDB (via pymongo)	Transactions, predictions, alerts, cases, audit logs
+Auth (Backend)	python-jose + bcrypt + passlib	JWT token generation & verification
+LLM / AI	Groq SDK → Llama-3.3-70b-versatile	LLM-powered fraud explanations & SAR reports
+📡 API Endpoints
+Method	Endpoint	Description
+GET	/	App status
+GET	/health	Health check
+GET	/version	API version info
+POST	/predict	Single transaction fraud prediction (SHAP + LLM)
+POST	/batch_predict	Batch transaction scoring
+GET	/predictions	Fetch recent prediction history
+GET	/dashboard/summary	Full dashboard KPIs, charts, model metadata
+GET	/model/metadata	Loaded model details & feature list
+POST	/feedback	Analyst feedback for continuous learning
+POST	/auth/login	JWT login
+GET	/metrics	Prometheus observability metrics
+
+## 🤖 ML & Explainability
+Component	Technology
+Ensemble Models	XGBoost, LightGBM, CatBoost, RandomForest, HistGradientBoosting
+Meta-Learner	Logistic Regression (stacking)
+Anomaly Detectors	MLPRegressor Autoencoder, Isolation Forest, Local Outlier Factor
+Explainability	SHAP (TreeExplainer)
+Preprocessing	scikit-learn Pipeline (StandardScaler)
+
+## 📊 Dashboard (Streamlit)
+A secondary analytics dashboard at 
+dashboard/app.py
+ using Streamlit + Plotly for operations monitoring, model retraining triggers, and LLM report generation.
+ 
 ## API Endpoints
 
 - `GET /` - API status
