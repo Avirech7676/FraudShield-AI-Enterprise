@@ -18,6 +18,10 @@ models/
 models/*.joblib
 *.joblib
 *.pkl
+!models/
+!models/production_model.joblib
+!models/best_model.joblib
+!models/preprocessor.joblib
 
 # Logs
 logs/
