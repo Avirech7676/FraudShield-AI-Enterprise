@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: fraudshield-api
+    runtime: python
+    # If your model .joblib files are large, commit them with Git LFS OR make
+    # sure they are included in the repo so Render can load them at startup.
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      # ---- Secrets (set these in the Render dashboard) ----
+      - key: MONGODB_URI
+        sync: false
+      - key: DATABASE_NAME
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+
+      # ---- Frontend origin(s) for CORS (comma separated, NO trailing slash) ----
+      # e.g. https://your-app.vercel.app,https://www.yourdomain.com
+      - key: FRONTEND_ORIGINS
+        sync: false
+
+      # ---- Non-secret config ----
+      - key: MODEL_DIRECTORY
+        value: models
+      - key: MODEL_VERSION
+        value: "2.0"
+      - key: DEFAULT_MODEL_VERSION
+        value: "2.0"
+      - key: LOG_DIRECTORY
+        value: logs
+      - key: REPORT_DIRECTORY
+        value: reports
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "60"
+      - key: API_VERSION
+        value: v2
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_MINUTES
+        value: "60"

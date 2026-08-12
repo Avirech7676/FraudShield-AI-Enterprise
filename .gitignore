@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyc
+.Python
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+*.env
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Logs
+logs/
+*.log
+backend.log
+server.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Data (large raw datasets)
+data/raw/*.csv
+data/raw/*.parquet
+
+# Reports (generated outputs)
+reports/*.pdf
+reports/*.xlsx
+reports/*.docx
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Temp
+*.tmp
+*.bak

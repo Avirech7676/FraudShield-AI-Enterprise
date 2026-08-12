@@ -1,0 +1,299 @@
+/* =======================================================
+   Prediction Page
+======================================================= */
+
+.prediction-page {
+  max-width: 1500px;
+
+  margin: auto;
+
+  padding: 30px;
+}
+
+.page-header {
+  margin-bottom: 30px;
+}
+
+.page-header h1 {
+  font-size: 34px;
+
+  font-weight: 700;
+}
+
+.page-header p {
+  color: #777;
+
+  margin-top: 10px;
+}
+
+/* =======================================================
+   Card
+======================================================= */
+
+.prediction-card {
+  background: #ffffff;
+
+  border-radius: 14px;
+
+  padding: 25px;
+
+  margin-bottom: 25px;
+
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.prediction-card h2 {
+  margin-bottom: 25px;
+}
+
+/* =======================================================
+   Grid
+======================================================= */
+
+.prediction-grid {
+  display: grid;
+
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+
+  gap: 20px;
+}
+
+/* =======================================================
+   Form
+======================================================= */
+
+.form-group {
+  display: flex;
+
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 8px;
+
+  font-weight: 600;
+}
+
+.form-group input,
+.form-group select {
+  padding: 12px;
+
+  border-radius: 8px;
+
+  border: 1px solid #d9d9d9;
+
+  outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border: 1px solid #2563eb;
+}
+
+/* =======================================================
+   Checkbox
+======================================================= */
+
+.checkbox-grid {
+  margin-top: 25px;
+
+  display: grid;
+
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+
+  gap: 15px;
+}
+
+.checkbox-grid label {
+  display: flex;
+
+  gap: 10px;
+
+  align-items: center;
+}
+
+/* =======================================================
+   Buttons
+======================================================= */
+
+.prediction-buttons {
+  display: flex;
+
+  gap: 20px;
+
+  margin-top: 30px;
+}
+
+.prediction-buttons button {
+  padding: 14px 24px;
+
+  border: none;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  font-size: 16px;
+}
+
+.prediction-buttons button:first-child {
+  background: #2563eb;
+
+  color: white;
+}
+
+.prediction-buttons button:last-child {
+  background: #e5e7eb;
+}
+
+/* =======================================================
+   Result
+======================================================= */
+
+.prediction-banner {
+  border-radius: 12px;
+
+  color: white;
+
+  padding: 25px;
+
+  text-align: center;
+
+  margin-bottom: 30px;
+}
+
+.prediction-banner.fraud {
+  background: #dc2626;
+}
+
+.prediction-banner.genuine {
+  background: #16a34a;
+}
+
+.summary-grid {
+  display: grid;
+
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+
+  gap: 20px;
+
+  margin-bottom: 30px;
+}
+
+.summary-card {
+  background: white;
+
+  border-radius: 12px;
+
+  padding: 20px;
+
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+.summary-card h4 {
+  color: #777;
+
+  margin-bottom: 10px;
+}
+
+.summary-card p {
+  font-size: 24px;
+
+  font-weight: bold;
+}
+
+/* =======================================================
+   Table
+======================================================= */
+
+.risk-table {
+  width: 100%;
+
+  border-collapse: collapse;
+}
+
+.risk-table td {
+  border-bottom: 1px solid #ddd;
+
+  padding: 12px;
+}
+
+.risk-table tr:hover {
+  background: #f5f5f5;
+}
+
+/* =======================================================
+   Error
+======================================================= */
+
+.prediction-error {
+  margin-top: 20px;
+
+  background: #fee2e2;
+
+  color: #991b1b;
+
+  padding: 15px;
+
+  border-radius: 8px;
+}
+
+/* =======================================================
+   Loading
+======================================================= */
+
+.loading {
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  height: 250px;
+}
+
+.spinner {
+  width: 60px;
+
+  height: 60px;
+
+  border: 8px solid #ddd;
+
+  border-top: 8px solid #2563eb;
+
+  border-radius: 50%;
+
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* =======================================================
+   Responsive
+======================================================= */
+
+@media (max-width: 768px) {
+  .prediction-page {
+    padding: 15px;
+  }
+
+  .prediction-buttons {
+    flex-direction: column;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prediction-grid {
+    grid-template-columns: 1fr;
+  }
+}

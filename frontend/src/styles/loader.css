@@ -1,0 +1,37 @@
+.loader-container{
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+padding:40px;
+
+}
+
+.loader{
+
+width:45px;
+
+height:45px;
+
+border-radius:50%;
+
+border:5px solid #ddd;
+
+border-top-color:#2563eb;
+
+animation:spin .8s linear infinite;
+
+}
+
+@keyframes spin{
+
+to{
+
+transform:rotate(360deg);
+
+}
+
+}

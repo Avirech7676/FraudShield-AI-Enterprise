@@ -1,0 +1,9 @@
+/* Theme overrides — kept for backward compatibility */
+/* Core design tokens are in index.css */
+body[data-theme="dark"] {
+  --bg: #12161e;
+  --card: #1e2330;
+  --text: #c8ced8;
+  --border: #2d3443;
+  --primary: #5a8db8;
+}
