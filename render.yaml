@@ -22,7 +22,8 @@ services:
       - key: FRONTEND_ORIGINS
         sync: false
 
-      # ---- Non-secret config ----
+      - key: PYTHON_VERSION
+        value: "3.12.8"
       - key: MODEL_DIRECTORY
         value: models
       - key: MODEL_VERSION
