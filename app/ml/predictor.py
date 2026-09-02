@@ -33,7 +33,13 @@ class FraudPredictor:
 
         try:
 
-            production = self.registry.production_model()
+            production = None
+            try:
+                production = self.registry.production_model()
+            except Exception as reg_err:
+                logger.warning(
+                    f"Model registry query skipped (using default best model): {reg_err}"
+                )
 
             if production:
 
@@ -46,8 +52,8 @@ class FraudPredictor:
 
             else:
 
-                logger.warning(
-                    "No production model registered."
+                logger.info(
+                    "Using Default Production Artifacts"
                 )
 
                 self.model_path = settings.BEST_MODEL
