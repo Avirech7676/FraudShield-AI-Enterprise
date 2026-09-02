@@ -48,10 +48,19 @@ class ModelRegistry:
         print(f"Registered model metadata for version {version}")
 
     def list_models(self):
-        return list(self.collection.find({}, {"_id": 0}))
+        try:
+            return list(self.collection.find({}, {"_id": 0}))
+        except Exception:
+            return []
 
     def latest_model(self):
-        return self.collection.find_one(sort=[("created_at", -1)])
+        try:
+            return self.collection.find_one(sort=[("created_at", -1)])
+        except Exception:
+            return None
 
     def production_model(self):
-        return self.collection.find_one({"status": "PRODUCTION"})
+        try:
+            return self.collection.find_one({"status": "PRODUCTION"})
+        except Exception:
+            return None

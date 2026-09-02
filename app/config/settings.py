@@ -25,7 +25,8 @@ class Settings:
     #####################################################
 
     JWT_SECRET_KEY = os.getenv(
-        "JWT_SECRET_KEY"
+        "JWT_SECRET_KEY",
+        "fraudshield-enterprise-secret-key-32bytes-min"
     )
 
     JWT_ALGORITHM = os.getenv(
