@@ -24,7 +24,7 @@ from catboost import CatBoostClassifier
 from app.config.settings import settings
 from app.config.logging_config import logger
 from app.ml.ensemble import EnterpriseStackingClassifier
-from app.ml.model_registry import ModelRegistry
+from app.continuous_learning.model_registry import ModelRegistry
 from app.ml.version_manager import VersionManager
 
 warnings.filterwarnings("ignore")

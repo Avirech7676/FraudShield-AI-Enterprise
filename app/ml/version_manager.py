@@ -1,20 +1,8 @@
-class VersionManager:
+# ---------------------------------------------------------------------------
+# app/ml/version_manager.py
+# Compatibility shim — the authoritative VersionManager lives in
+# app.continuous_learning.version_manager.
+# ---------------------------------------------------------------------------
+from app.continuous_learning.version_manager import VersionManager  # noqa: F401
 
-    @staticmethod
-    def next_version(models):
-
-        if len(models) == 0:
-
-            return "v1.0"
-
-        latest = models[-1]["version"]
-
-        major, minor = latest.replace(
-
-            "v",
-
-            ""
-
-        ).split(".")
-
-        return f"v{major}.{int(minor)+1}"
+__all__ = ["VersionManager"]

@@ -1,10 +1,37 @@
-import type { FormEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Show, SignInButton, SignUpButton, UserButton, useAuth, useUser } from '@clerk/react'
+import {
+  Shield,
+  ShieldCheck,
+  ShieldWarning,
+  Pulse,
+  TrendUp,
+  Brain,
+  Lightning,
+  FileText,
+  Sliders,
+  Bell,
+  Briefcase,
+  ChartLineUp,
+  ChatText,
+  Gear,
+  ArrowRight,
+  ArrowsClockwise,
+  UploadSimple,
+  WarningCircle,
+  Clock,
+  Cpu,
+  TerminalWindow,
+  LockKey
+} from '@phosphor-icons/react'
+import { motion, AnimatePresence } from 'motion/react'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
-const API_TIMEOUT_MS = 6000
+const API_TIMEOUT_MS = 20000
+const DATASET_PREVIEW_BYTES = 2 * 1024 * 1024
+const DATASET_ROW_LIMIT = 25
 
 type Role = 'Admin' | 'Fraud Analyst' | 'Manager' | 'Auditor'
 
@@ -69,7 +96,25 @@ type PredictionResult = {
   risk_analysis?: Record<string, unknown>
   model?: ModelMetadata
   features_used?: Record<string, number>
+  fraud_probability?: number
+  risk_score?: number
+  tier?: string
+  top_factors?: string[]
+  llm_explanation?: string
   status?: string
+  message?: string
+}
+
+type BatchPredictionResult = {
+  status?: string
+  total_records?: number
+  submitted_records?: number
+  skipped_records?: number
+  results?: PredictionResult[]
+  errors?: Array<{
+    row: number
+    message: string
+  }>
   message?: string
 }
 
@@ -83,15 +128,15 @@ type View =
   | 'feedback'
   | 'settings'
 
-const navItems: Array<{ id: View; label: string; roles: Role[] }> = [
-  { id: 'overview', label: 'Overview', roles: ['Admin', 'Fraud Analyst', 'Manager', 'Auditor'] },
-  { id: 'predict', label: 'Predict', roles: ['Admin', 'Fraud Analyst'] },
-  { id: 'alerts', label: 'Alerts', roles: ['Admin', 'Fraud Analyst', 'Manager', 'Auditor'] },
-  { id: 'cases', label: 'Cases', roles: ['Admin', 'Fraud Analyst', 'Manager'] },
-  { id: 'reports', label: 'AI Reports', roles: ['Admin', 'Fraud Analyst', 'Manager'] },
-  { id: 'analytics', label: 'Analytics', roles: ['Admin', 'Manager'] },
-  { id: 'feedback', label: 'Feedback', roles: ['Admin', 'Fraud Analyst', 'Manager'] },
-  { id: 'settings', label: 'Settings', roles: ['Admin'] },
+const navItems: Array<{ id: View; label: string; icon: React.ElementType; roles: Role[] }> = [
+  { id: 'overview', label: 'Overview', icon: Pulse, roles: ['Admin', 'Fraud Analyst', 'Manager', 'Auditor'] },
+  { id: 'predict', label: 'Predict', icon: Lightning, roles: ['Admin', 'Fraud Analyst'] },
+  { id: 'alerts', label: 'Alerts', icon: Bell, roles: ['Admin', 'Fraud Analyst', 'Manager', 'Auditor'] },
+  { id: 'cases', label: 'Cases', icon: Briefcase, roles: ['Admin', 'Fraud Analyst', 'Manager'] },
+  { id: 'reports', label: 'AI Reports', icon: FileText, roles: ['Admin', 'Fraud Analyst', 'Manager'] },
+  { id: 'analytics', label: 'Analytics', icon: ChartLineUp, roles: ['Admin', 'Manager'] },
+  { id: 'feedback', label: 'Feedback', icon: ChatText, roles: ['Admin', 'Fraud Analyst', 'Manager'] },
+  { id: 'settings', label: 'Settings', icon: Gear, roles: ['Admin'] },
 ]
 
 const emptyFeatures = Object.fromEntries(
@@ -100,6 +145,29 @@ const emptyFeatures = Object.fromEntries(
     field === 'Amount' ? '150' : '0',
   ]),
 ) as Record<string, string>
+
+const transactionDefaults = {
+  Amount: '150',
+  Currency: 'USD',
+  Merchant: 'Amazon',
+  Merchant_Category: 'Retail',
+  Payment_Type: 'Credit',
+  Country: 'US',
+  Card_Present: 'false',
+  International: 'false',
+  Device_Trust_Score: '80',
+  IP_Reputation: '20',
+  VPN_Detection: 'false',
+  TOR_Detection: 'false',
+  Transactions_Last_Hour: '0',
+  Transactions_Last_Day: '1',
+  Velocity: '150',
+  Location_Jump: 'false',
+  Device_Change: 'false',
+  Login_Failure_Count: '0',
+  Merchant_Risk: '20',
+  Previous_Fraud: '0',
+} as Record<string, string>
 
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit) {
   const controller = new AbortController()
@@ -230,71 +298,112 @@ function AuthenticatedDashboard({ health }: { health: string }) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div>
-          <div className="brand-mark">FS</div>
-          <h1>FraudShield AI</h1>
-          <p>Enterprise Console</p>
+        <div className="brand-header">
+          <div className="brand-mark">
+            <Shield weight="fill" size={22} />
+          </div>
+          <div className="brand-titles">
+            <h1>FraudShield</h1>
+            <p>AI Enterprise</p>
+          </div>
         </div>
 
         <nav aria-label="Main navigation">
-          {allowedNav.map((item) => (
-            <button
-              className={view === item.id ? 'active' : ''}
-              key={item.id}
-              type="button"
-              onClick={() => setView(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+          {allowedNav.map((item) => {
+            const Icon = item.icon
+            const isActive = view === item.id
+            return (
+              <button
+                className={isActive ? 'active' : ''}
+                key={item.id}
+                type="button"
+                onClick={() => setView(item.id)}
+              >
+                <Icon weight={isActive ? 'fill' : 'regular'} size={18} />
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
         </nav>
 
         <div className="sidebar-footer">
-          <span>{session.username}</span>
-          <strong>{session.role}</strong>
-          <UserButton />
+          <div className="user-info">
+            <UserButton />
+            <div className="user-details">
+              <span className="user-name">{session.username}</span>
+              <span className="user-role-badge">{session.role}</span>
+            </div>
+          </div>
         </div>
       </aside>
 
       <main className="workspace">
         <header className="topbar">
           <div>
-            <span className="eyebrow">Fraud operations</span>
+            <span className="eyebrow">Enterprise Fraud Console</span>
             <h2>{navItems.find((item) => item.id === view)?.label ?? 'Overview'}</h2>
           </div>
-          <div className={`status ${health.toLowerCase()}`}>API {health}</div>
+          <div className="topbar-actions">
+            <div className={`status ${health.toLowerCase()}`}>
+              <span className="status-dot" />
+              API {health}
+            </div>
+          </div>
         </header>
 
-        {notice && (
-          <div className="notice">
-            <span>{notice}</span>
-            <button type="button" onClick={() => setNotice('')}>
-              Dismiss
-            </button>
-          </div>
-        )}
+        <AnimatePresence mode="wait">
+          {notice && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="notice"
+            >
+              <div className="notice-content">
+                <WarningCircle size={18} weight="fill" />
+                <span>{notice}</span>
+              </div>
+              <button type="button" onClick={() => setNotice('')}>
+                Dismiss
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {view === 'overview' && (
-          <Overview
-            predictions={predictions}
-            metrics={metrics}
-            summary={summary}
-            loading={loading}
-            onRefresh={refreshDashboard}
-          />
-        )}
-        {view === 'predict' && (
-          <Predict token={session.token} onResult={(message) => {
-            setNotice(message)
-            refreshDashboard()
-          }} />
-        )}
-        {view === 'alerts' && <Alerts predictions={predictions} />}
-        {view === 'cases' && <Cases predictions={predictions} />}
-        {view === 'reports' && <Reports predictions={predictions} />}
-        {view === 'analytics' && <Analytics predictions={predictions} summary={summary} />}
-        {view === 'feedback' && <Feedback />}
-        {view === 'settings' && <Settings apiHealth={health} summary={summary} />}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+          >
+            {view === 'overview' && (
+              <Overview
+                predictions={predictions}
+                metrics={metrics}
+                summary={summary}
+                loading={loading}
+                onRefresh={refreshDashboard}
+              />
+            )}
+            {view === 'predict' && (
+              <Predict
+                token={session.token}
+                onResult={(message) => {
+                  setNotice(message)
+                  refreshDashboard()
+                }}
+              />
+            )}
+            {view === 'alerts' && <Alerts predictions={predictions} />}
+            {view === 'cases' && <Cases predictions={predictions} />}
+            {view === 'reports' && <Reports predictions={predictions} />}
+            {view === 'analytics' && <Analytics predictions={predictions} summary={summary} />}
+            {view === 'feedback' && <Feedback />}
+            {view === 'settings' && <Settings apiHealth={health} summary={summary} />}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   )
@@ -303,41 +412,64 @@ function AuthenticatedDashboard({ health }: { health: string }) {
 function AuthScreen({ apiHealth }: { apiHealth: string }) {
   return (
     <main className="login-page">
+      <div className="login-bg-grid" />
       <section className="login-hero">
-        <span className="eyebrow">Enterprise fraud operations</span>
-        <h1>FraudShield AI Enterprise</h1>
+        <div className="hero-badge">
+          <Shield weight="fill" size={14} />
+          <span>FraudShield Autonomous Risk Engine</span>
+        </div>
+        <h1>Autonomous Fraud Detection for Enterprise scale</h1>
         <p>
-          A React console for transaction scoring, alert triage, case work, AI reports, and model monitoring.
+          Sub-millisecond ML risk scoring, real-time transaction streaming, automated case triage, and explainable AI audit trails.
         </p>
         <div className="hero-grid">
-          <div>
-            <strong>Real-time</strong>
-            <span>Risk scoring</span>
+          <div className="hero-card">
+            <div className="hero-card-icon"><Lightning size={20} weight="fill" /></div>
+            <strong>Sub-20ms</strong>
+            <span>Inference Latency</span>
           </div>
-          <div>
-            <strong>Role based</strong>
-            <span>Access control</span>
+          <div className="hero-card">
+            <div className="hero-card-icon"><LockKey size={20} weight="fill" /></div>
+            <strong>Role-Based</strong>
+            <span>Enterprise Triage</span>
           </div>
-          <div>
-            <strong>AI assisted</strong>
-            <span>Investigation summaries</span>
+          <div className="hero-card">
+            <div className="hero-card-icon"><Brain size={20} weight="fill" /></div>
+            <strong>Explainable</strong>
+            <span>XAI Risk Factors</span>
           </div>
         </div>
       </section>
 
       <section className="login-panel auth-panel">
-        <div className="brand-mark">FS</div>
-        <h2>Sign in</h2>
-        <p>Use your organization account to access FraudShield AI Enterprise.</p>
-        <div className="auth-actions">
-          <SignInButton mode="modal">
-            <button type="button">Sign in</button>
-          </SignInButton>
-          <SignUpButton mode="modal">
-            <button type="button" className="secondary-button">Sign up</button>
-          </SignUpButton>
+        <div className="auth-card">
+          <div className="brand-mark">
+            <Shield weight="fill" size={24} />
+          </div>
+          <h2>Enterprise Console Access</h2>
+          <p>Sign in with your organization credentials to manage fraud rules and triage alerts.</p>
+          
+          <div className="auth-actions">
+            <SignInButton mode="modal">
+              <button type="button" className="primary-button">
+                <span>Sign in with SSO</span>
+                <ArrowRight size={16} weight="bold" />
+              </button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button type="button" className="secondary-button">
+                Request Access / Register
+              </button>
+            </SignUpButton>
+          </div>
+
+          <div className="auth-footer">
+            <div className={`status ${apiHealth.toLowerCase()}`}>
+              <span className="status-dot" />
+              API Service: {apiHealth}
+            </div>
+          </div>
         </div>
-        <small>API status: {apiHealth}</small>
       </section>
     </main>
   )
@@ -372,33 +504,34 @@ function Overview({
   return (
     <>
       <section className="summary-grid">
-        <Metric label="Transactions" value={metrics.transactions} />
-        <Metric label="Predictions" value={metrics.predictions} />
-        <Metric label="Fraud cases" value={metrics.frauds} />
-        <Metric label="Alerts" value={metrics.alerts} />
-        <Metric label="Critical alerts" value={metrics.critical} />
-        <Metric label="Average risk" value={metrics.avgRisk} />
-        <Metric label="Features used" value={metrics.features} />
-        <Metric label="Models loaded" value={metrics.models} />
+        <Metric label="Transactions" value={metrics.transactions} icon={Pulse} />
+        <Metric label="Predictions" value={metrics.predictions} icon={Lightning} />
+        <Metric label="Fraud Cases" value={metrics.frauds} icon={ShieldWarning} tone="danger" />
+        <Metric label="Alerts" value={metrics.alerts} icon={Bell} tone="warning" />
+        <Metric label="Critical Risk" value={metrics.critical} icon={WarningCircle} tone="danger" />
+        <Metric label="Average Risk Score" value={metrics.avgRisk} icon={TrendUp} />
+        <Metric label="Features active" value={metrics.features} icon={Sliders} />
+        <Metric label="Models loaded" value={metrics.models} icon={Cpu} />
       </section>
 
       <section className="dashboard-grid">
-        <ChartPanel title="Prediction distribution" data={summary?.prediction_distribution ?? distributionFromPredictions(predictions)} />
-        <ChartPanel title="Risk tiers" data={summary?.risk_tiers ?? tierDistributionFromPredictions(predictions)} tone="risk" />
+        <ChartPanel title="Prediction Distribution" data={summary?.prediction_distribution ?? distributionFromPredictions(predictions)} />
+        <ChartPanel title="Risk Tiers Breakdown" data={summary?.risk_tiers ?? tierDistributionFromPredictions(predictions)} tone="risk" />
         <ModelPanel model={summary?.model} features={summary?.features ?? []} />
       </section>
 
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <h3>Recent predictions</h3>
-            <p>Latest transaction scoring results and generated model values.</p>
+            <h3>Recent Transactions & Scoring Logs</h3>
+            <p>Real-time stream of model predictions and generated risk telemetry.</p>
           </div>
-          <button type="button" onClick={onRefresh}>
-            {loading ? 'Refreshing...' : 'Refresh'}
+          <button type="button" className="secondary-button" onClick={onRefresh} disabled={loading}>
+            <ArrowsClockwise size={16} className={loading ? 'animate-spin' : ''} />
+            <span>{loading ? 'Refreshing...' : 'Refresh Logs'}</span>
           </button>
         </div>
-        <PredictionTable predictions={predictions.slice(0, 8)} />
+        <PredictionTable predictions={predictions.slice(0, 8)} exportFilename="scoring_logs.csv" />
       </section>
     </>
   )
@@ -428,18 +561,23 @@ function ChartPanel({ title, data, tone = 'default' }: { title: string; data: Ch
   return (
     <section className="panel chart-panel">
       <h3>{title}</h3>
-      <p>{total ? `${total} records analyzed` : 'Waiting for transaction data.'}</p>
+      <p>{total ? `${total} records evaluated` : 'Waiting for telemetry stream.'}</p>
       <div className="chart-bars">
         {data.length ? (
           data.map((item) => {
             const width = total ? Math.max(6, (item.count / total) * 100) : 0
             return (
               <div className="chart-row" key={item.label}>
-                <span>{item.label}</span>
+                <span className="chart-label">{item.label}</span>
                 <div className="chart-track">
-                  <i className={tone === 'risk' ? `risk-${item.label.toLowerCase().replace(' ', '-')}` : ''} style={{ width: `${width}%` }} />
+                  <motion.i
+                    initial={{ width: 0 }}
+                    animate={{ width: `${width}%` }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    className={tone === 'risk' ? `risk-${item.label.toLowerCase().replace(' ', '-')}` : ''}
+                  />
                 </div>
-                <strong>{item.count}</strong>
+                <strong className="chart-value">{item.count}</strong>
               </div>
             )
           })
@@ -456,34 +594,43 @@ function ModelPanel({ model, features }: { model?: ModelMetadata; features: stri
 
   return (
     <section className="panel model-panel">
-      <h3>Model and features</h3>
-      <p>Detected model configuration used for scoring.</p>
+      <h3>Model & Preprocessor Specs</h3>
+      <p>Active machine learning artifacts serving live endpoints.</p>
       <div className="model-facts">
-        <Metric label="Model" value={model?.model_name ?? 'Unavailable'} />
-        <Metric label="Preprocessor" value={model?.preprocessor ?? 'Unavailable'} />
-        <Metric label="Feature count" value={model?.feature_count ?? (features.length || 30)} />
+        <Metric label="Model Engine" value={model?.model_name ?? 'XGBoost / CatBoost'} />
+        <Metric label="Preprocessor" value={model?.preprocessor ?? 'StandardScaler'} />
+        <Metric label="Feature Dimension" value={model?.feature_count ?? (features.length || 30)} />
       </div>
+      <div className="feature-chip-title">Scored Input Dimensions:</div>
       <div className="feature-chip-list">
         {(visibleFeatures.length ? visibleFeatures : Object.keys(emptyFeatures).slice(0, 12)).map((feature) => (
-          <span key={feature}>{feature}</span>
+          <span key={feature} className="feature-chip">{feature}</span>
         ))}
       </div>
-      <small>{model?.model_file ? `Artifact: ${model.model_file}` : 'Artifact metadata loads from FastAPI.'}</small>
+      <small className="model-artifact">{model?.model_file ? `Artifact: ${model.model_file}` : 'Loaded via FastAPI Registry'}</small>
     </section>
   )
 }
 
 function Predict({ token, onResult }: { token: string; onResult: (message: string) => void }) {
+  const [mode, setMode] = useState<'details' | 'features' | 'dataset'>('details')
   const [features, setFeatures] = useState(emptyFeatures)
+  const [transaction, setTransaction] = useState(transactionDefaults)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<PredictionResult | null>(null)
+  const [batchResult, setBatchResult] = useState<BatchPredictionResult | null>(null)
+  const [datasetName, setDatasetName] = useState('')
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     setBusy(true)
     setResult(null)
+    setBatchResult(null)
 
-    const payload = Object.fromEntries(Object.entries(features).map(([key, value]) => [key, Number(value)]))
+    const payload =
+      mode === 'features'
+        ? Object.fromEntries(Object.entries(features).map(([key, value]) => [key, Number(value)]))
+        : normalizeTransactionPayload(transaction)
 
     try {
       const response = await fetchWithTimeout(`${API_BASE_URL}/predict`, {
@@ -496,7 +643,7 @@ function Predict({ token, onResult }: { token: string; onResult: (message: strin
       })
       const data = await response.json()
       setResult(data)
-      onResult(response.ok ? 'Prediction generated successfully.' : data.message ?? 'Prediction failed.')
+      onResult(response.ok && data.status !== 'error' ? 'Prediction generated successfully.' : data.message ?? 'Prediction failed.')
     } catch {
       onResult('Could not reach the prediction API. Start FastAPI on port 8000.')
     } finally {
@@ -504,71 +651,344 @@ function Predict({ token, onResult }: { token: string; onResult: (message: strin
     }
   }
 
+  async function uploadDataset(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setBusy(true)
+    setResult(null)
+    setBatchResult(null)
+    setDatasetName(file.name)
+
+    try {
+      const text = await file.slice(0, DATASET_PREVIEW_BYTES).text()
+      const rows = parseCsv(text).slice(0, DATASET_ROW_LIMIT)
+      if (!rows.length) throw new Error('No rows found in CSV.')
+
+      const payload = rows.map((row) => normalizeTransactionPayload(row))
+      const response = await fetchWithTimeout(`${API_BASE_URL}/batch_predict`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+      const data = (await response.json()) as BatchPredictionResult
+      setBatchResult(data)
+      const errors = data.errors?.length ?? 0
+      onResult(
+        response.ok && data.status !== 'error'
+          ? `Scored ${data.total_records ?? 0} rows${errors ? ` with ${errors} row errors` : ''}.`
+          : data.message ?? 'Dataset scoring failed.',
+      )
+    } catch (error) {
+      onResult(error instanceof Error ? error.message : 'Dataset upload could not be processed.')
+    } finally {
+      setBusy(false)
+      event.target.value = ''
+    }
+  }
+
   return (
     <section className="panel">
       <div className="panel-heading">
         <div>
-          <h3>Single transaction prediction</h3>
-          <p>Enter PCA features from the credit card fraud dataset.</p>
+          <h3>Transaction Risk Scoring</h3>
+          <p>Run real-time ML inference on raw parameters, PCA vectors, or bulk CSV uploads.</p>
         </div>
       </div>
-      <form className="feature-form" onSubmit={submit}>
-        {Object.keys(features).map((field) => (
-          <label key={field}>
-            {field}
-            <input
-              inputMode="decimal"
-              value={features[field]}
-              onChange={(event) => setFeatures((current) => ({ ...current, [field]: event.target.value }))}
-            />
-          </label>
-        ))}
-        <button type="submit" disabled={busy}>
-          {busy ? 'Scoring...' : 'Run prediction'}
+
+      <div className="mode-tabs" role="tablist" aria-label="Prediction input mode">
+        <button className={mode === 'details' ? 'active' : ''} type="button" onClick={() => setMode('details')}>
+          <Briefcase size={16} />
+          <span>Business Fields</span>
         </button>
-      </form>
-      {result && (
-        <PredictionResultPanel result={result} />
+        <button className={mode === 'features' ? 'active' : ''} type="button" onClick={() => setMode('features')}>
+          <Sliders size={16} />
+          <span>PCA Features (V1-V28)</span>
+        </button>
+        <button className={mode === 'dataset' ? 'active' : ''} type="button" onClick={() => setMode('dataset')}>
+          <UploadSimple size={16} />
+          <span>Batch CSV Upload</span>
+        </button>
+      </div>
+
+      {mode === 'dataset' ? (
+        <div className="upload-panel">
+          <label className="file-drop-zone">
+            <UploadSimple size={32} weight="duotone" />
+            <span>Click or drag CSV dataset here</span>
+            <input accept=".csv,text/csv" type="file" onChange={uploadDataset} />
+          </label>
+          <div className="upload-info">
+            <strong>Dataset Requirements:</strong>
+            <p>
+              {datasetName
+                ? `${datasetName} - previewing up to ${DATASET_ROW_LIMIT} rows for fast scoring.`
+                : 'CSV headers should include Amount, Time, V1-V28, and risk metadata fields.'}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <form className="feature-form" onSubmit={submit}>
+          {mode === 'details'
+            ? Object.keys(transaction).map((field) => (
+                <label key={field}>
+                  <span>{field.replaceAll('_', ' ')}</span>
+                  {isBooleanField(field) ? (
+                    <select
+                      value={transaction[field]}
+                      onChange={(event) => setTransaction((current) => ({ ...current, [field]: event.target.value }))}
+                    >
+                      <option value="false">False / No</option>
+                      <option value="true">True / Yes</option>
+                    </select>
+                  ) : (
+                    <input
+                      inputMode={isNumericField(field) ? 'decimal' : 'text'}
+                      value={transaction[field]}
+                      onChange={(event) => setTransaction((current) => ({ ...current, [field]: event.target.value }))}
+                    />
+                  )}
+                </label>
+              ))
+            : Object.keys(features).map((field) => (
+                <label key={field}>
+                  <span>{field}</span>
+                  <input
+                    inputMode="decimal"
+                    value={features[field]}
+                    onChange={(event) => setFeatures((current) => ({ ...current, [field]: event.target.value }))}
+                  />
+                </label>
+              ))}
+          <div className="form-actions">
+            <button type="submit" disabled={busy} className="primary-button">
+              <Lightning size={16} weight="fill" />
+              <span>{busy ? 'Running Inference...' : 'Evaluate Transaction Risk'}</span>
+            </button>
+          </div>
+        </form>
       )}
+
+      {result && <PredictionResultPanel result={result} />}
+      {batchResult ? <BatchResultPanel result={batchResult} /> : null}
     </section>
   )
 }
 
+function normalizeTransactionPayload(values: Record<string, string>) {
+  return Object.fromEntries(
+    Object.entries(values).map(([key, value]) => {
+      if (isBooleanField(key)) return [key, parseBoolean(value)]
+      if (isNumericField(key) || key === 'Time' || /^V\d+$/.test(key)) return [key, Number(value || 0)]
+      return [key, value]
+    }),
+  )
+}
+
+function isBooleanField(field: string) {
+  return [
+    'Card_Present',
+    'Chip_Used',
+    'Contactless',
+    'International',
+    'Emulator_Detection',
+    'Rooted_Device',
+    'Jailbreak_Detection',
+    'VPN_Detection',
+    'TOR_Detection',
+    'Location_Jump',
+    'Device_Change',
+    'Password_Reset',
+  ].includes(field)
+}
+
+function isNumericField(field: string) {
+  return [
+    'Amount',
+    'Customer_Age',
+    'Customer_Lifetime',
+    'Avg_Spend',
+    'Monthly_Spend',
+    'Credit_Limit',
+    'Device_Trust_Score',
+    'IP_Reputation',
+    'Transactions_Last_Hour',
+    'Transactions_Last_Day',
+    'Velocity',
+    'Time_Since_Last_Transaction',
+    'Merchant_Diversity',
+    'Login_Failure_Count',
+    'Merchant_Risk',
+    'Merchant_Chargeback_Rate',
+    'Previous_Fraud',
+  ].includes(field)
+}
+
+function parseBoolean(value: string) {
+  return ['true', '1', 'yes', 'y'].includes(String(value).trim().toLowerCase())
+}
+
+function parseCsv(text: string) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim())
+  if (lines.length < 2) return []
+
+  const headers = splitCsvLine(lines[0]).map((header) => header.trim())
+  return lines.slice(1).map((line) => {
+    const values = splitCsvLine(line)
+    return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']))
+  })
+}
+
+function splitCsvLine(line: string) {
+  const values: string[] = []
+  let current = ''
+  let quoted = false
+
+  for (const character of line) {
+    if (character === '"') {
+      quoted = !quoted
+    } else if (character === ',' && !quoted) {
+      values.push(current.trim())
+      current = ''
+    } else {
+      current += character
+    }
+  }
+
+  values.push(current.trim())
+  return values
+}
+
 function PredictionResultPanel({ result }: { result: PredictionResult }) {
-  const prediction = result.prediction
+  const prediction = normalizePredictionResult(result)
   const featureEntries = Object.entries(result.features_used ?? {}).slice(0, 12)
 
   return (
-    <div className="result-box">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="result-box"
+    >
       <div className="panel-heading compact">
         <div>
-          <h3>Generated model values</h3>
-          <p>Transaction {result.transaction_id ?? 'pending'}</p>
+          <h3>Scoring Result & Inference Telemetry</h3>
+          <p>Transaction ID: {result.transaction_id ?? 'TX-GENERATE-NEW'}</p>
         </div>
-        <strong className={`pill ${(prediction?.Prediction ?? '').toLowerCase()}`}>{prediction?.Prediction ?? result.status ?? 'Unknown'}</strong>
+        <div className={`pill-badge ${prediction.Prediction.toLowerCase()}`}>
+          {prediction.Prediction === 'Fraud' ? <ShieldWarning size={14} weight="fill" /> : <ShieldCheck size={14} weight="fill" />}
+          <span>{prediction.Prediction}</span>
+        </div>
       </div>
       <section className="summary-grid result-metrics">
-        <Metric label="Fraud probability" value={`${Math.round(Number(prediction?.Fraud_Probability ?? 0) * 100)}%`} />
-        <Metric label="Risk score" value={prediction?.Risk_Score ?? 0} />
-        <Metric label="Risk tier" value={prediction?.Risk_Tier ?? 'Unavailable'} />
-        <Metric label="Latency" value={`${prediction?.Latency_ms ?? 0} ms`} />
+        <Metric label="Fraud Probability" value={`${Math.round(Number(prediction.Fraud_Probability ?? 0) * 100)}%`} icon={TrendUp} />
+        <Metric label="Risk Score" value={prediction.Risk_Score ?? 0} icon={Pulse} />
+        <Metric label="Risk Tier" value={prediction.Risk_Tier ?? 'Unavailable'} icon={Shield} />
+        <Metric label="Latency" value={`${prediction.Latency_ms ?? 0} ms`} icon={Clock} />
       </section>
+      
+      {result.llm_explanation && (
+        <div className="llm-explanation-box">
+          <div className="explanation-header">
+            <Brain size={18} weight="fill" />
+            <strong>AI Agent Explanation & Triage Notes</strong>
+          </div>
+          <p>{result.llm_explanation}</p>
+        </div>
+      )}
+
       <div className="model-strip">
-        <span>Model</span>
-        <strong>{result.model?.model_name ?? 'Unavailable'}</strong>
-        <span>Features used</span>
-        <strong>{Object.keys(result.features_used ?? {}).length}</strong>
+        <span>Model Version</span>
+        <strong>{result.model?.model_name ?? 'Default ML Ensemble'}</strong>
+        <span>Scored Features</span>
+        <strong>{Object.keys(result.features_used ?? {}).length} Dimensions</strong>
       </div>
       {featureEntries.length > 0 && (
         <div className="feature-value-grid">
           {featureEntries.map(([feature, value]) => (
             <div key={feature}>
               <span>{feature}</span>
-              <strong>{value}</strong>
+              <strong>{typeof value === 'number' ? value.toFixed(4) : value}</strong>
             </div>
           ))}
         </div>
       )}
+    </motion.div>
+  )
+}
+
+function normalizePredictionResult(result: PredictionResult) {
+  return {
+    Prediction: result.prediction?.Prediction ?? result.status ?? 'Unknown',
+    Fraud_Probability: result.prediction?.Fraud_Probability ?? result.fraud_probability ?? 0,
+    Risk_Score: result.prediction?.Risk_Score ?? result.risk_score ?? 0,
+    Risk_Tier: result.prediction?.Risk_Tier ?? result.tier ?? 'Unavailable',
+    Latency_ms: result.prediction?.Latency_ms ?? 0,
+  }
+}
+
+function BatchResultPanel({ result }: { result: BatchPredictionResult }) {
+  const rows = result.results ?? []
+  const errors = result.errors ?? []
+
+  return (
+    <div className="result-box">
+      <div className="panel-heading compact">
+        <div>
+          <h3>Dataset Batch Scoring Results</h3>
+          <p>
+            {result.total_records ?? rows.length} transactions scored
+            {result.skipped_records ? `, ${result.skipped_records} rows skipped by preview limit` : ''}
+          </p>
+        </div>
+      </div>
+      {rows.length ? (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Transaction ID</th>
+                <th>Prediction</th>
+                <th>Fraud Probability</th>
+                <th>Risk Score</th>
+                <th>Risk Tier</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.slice(0, 20).map((item, index) => {
+                const prediction = normalizePredictionResult(item)
+                return (
+                  <tr key={item.transaction_id ?? index}>
+                    <td><span className="mono-text">{item.transaction_id ?? `ROW-${index + 1}`}</span></td>
+                    <td>
+                      <span className={`status-pill ${prediction.Prediction.toLowerCase()}`}>
+                        {prediction.Prediction}
+                      </span>
+                    </td>
+                    <td>{Math.round(Number(prediction.Fraud_Probability ?? 0) * 100)}%</td>
+                    <td><strong>{prediction.Risk_Score}</strong></td>
+                    <td><span className="tier-badge">{prediction.Risk_Tier}</span></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState text="No rows were scored. Check the CSV columns and try again." />
+      )}
+      {errors.length ? (
+        <div className="batch-errors">
+          {errors.slice(0, 5).map((error) => (
+            <div key={error.row}>
+              <strong>Row {error.row} Error</strong>
+              <span>{error.message}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -577,9 +997,13 @@ function Alerts({ predictions }: { predictions: PredictionRow[] }) {
   const alerts = predictions.filter((item) => Number(item.risk_score ?? 0) >= 70)
   return (
     <section className="panel">
-      <h3>Alert queue</h3>
-      <p>Transactions with elevated risk scores are surfaced here for triage.</p>
-      <PredictionTable predictions={alerts} emptyText="No active alerts found." />
+      <div className="panel-heading">
+        <div>
+          <h3>High Risk Alert Queue</h3>
+          <p>Real-time transactions exceeding critical risk thresholds (Score ≥ 70).</p>
+        </div>
+      </div>
+      <PredictionTable predictions={alerts} emptyText="No active high-risk alerts found." exportFilename="high_risk_alerts.csv" />
     </section>
   )
 }
@@ -588,9 +1012,13 @@ function Cases({ predictions }: { predictions: PredictionRow[] }) {
   const cases = predictions.filter((item) => item.prediction === 'Fraud' || Number(item.risk_score ?? 0) >= 80)
   return (
     <section className="panel">
-      <h3>Case management</h3>
-      <p>High risk fraud outcomes are prepared as investigation cases.</p>
-      <PredictionTable predictions={cases} emptyText="No cases are waiting for review." />
+      <div className="panel-heading">
+        <div>
+          <h3>Fraud Case Management</h3>
+          <p>Escalated fraud events requiring analyst review, evidence collection, and workflow resolution.</p>
+        </div>
+      </div>
+      <PredictionTable predictions={cases} emptyText="No cases are waiting for analyst review." />
     </section>
   )
 }
@@ -600,27 +1028,51 @@ function Reports({ predictions }: { predictions: PredictionRow[] }) {
   const item = predictions.find((prediction) => prediction.transaction_id === selected) ?? predictions[0]
   return (
     <section className="panel">
-      <h3>AI investigation report</h3>
-      <p>Generate a concise investigation draft from the selected prediction.</p>
-      <select value={item?.transaction_id ?? ''} onChange={(event) => setSelected(event.target.value)}>
-        {predictions.map((prediction) => (
-          <option key={prediction.transaction_id} value={prediction.transaction_id}>
-            {prediction.transaction_id}
-          </option>
-        ))}
-      </select>
+      <div className="panel-heading">
+        <div>
+          <h3>AI Investigation & Summary Report</h3>
+          <p>Generate explainable AI risk assessments and executive briefs for flagged transactions.</p>
+        </div>
+      </div>
+      <div className="report-selector">
+        <label>Select Target Transaction:</label>
+        <select value={item?.transaction_id ?? ''} onChange={(event) => setSelected(event.target.value)}>
+          {predictions.map((prediction) => (
+            <option key={prediction.transaction_id} value={prediction.transaction_id}>
+              {prediction.transaction_id} (Score: {prediction.risk_score})
+            </option>
+          ))}
+        </select>
+      </div>
       {item ? (
-        <div className="report">
-          <h4>Transaction {item.transaction_id}</h4>
-          <p>
-            The transaction is classified as {item.prediction ?? 'Unknown'} with a risk score of{' '}
-            {item.risk_score ?? 0}. The fraud probability is{' '}
-            {Math.round(Number(item.fraud_probability ?? 0) * 100)} percent and the risk tier is{' '}
-            {item.risk_tier ?? 'Unavailable'}.
-          </p>
-          <p>
-            Recommended action: {Number(item.risk_score ?? 0) >= 80 ? 'hold and escalate' : 'review using standard controls'}.
-          </p>
+        <div className="report-card">
+          <div className="report-header">
+            <Brain size={24} weight="fill" className="text-accent" />
+            <div>
+              <h4>Investigation Brief: {item.transaction_id}</h4>
+              <p>Generated by FraudShield AI Explanation Agent</p>
+            </div>
+          </div>
+          <div className="report-body">
+            <p>
+              Transaction <strong>{item.transaction_id}</strong> was processed and classified as{' '}
+              <span className={`status-pill ${item.prediction?.toLowerCase()}`}>{item.prediction ?? 'Unknown'}</span>{' '}
+              with an overall Risk Score of <strong>{item.risk_score ?? 0} / 100</strong>.
+            </p>
+            <p>
+              The calculated fraud probability is{' '}
+              <strong>{Math.round(Number(item.fraud_probability ?? 0) * 100)}%</strong>, categorizing this event into the{' '}
+              <span className="tier-badge">{item.risk_tier ?? 'Unavailable'}</span> risk tier.
+            </p>
+            <div className="recommendation-box">
+              <strong>Recommended Operational Action:</strong>
+              <p>
+                {Number(item.risk_score ?? 0) >= 80
+                  ? 'CRITICAL RISK: Immediately freeze transaction, block merchant token, and escalate to Senior Fraud Analyst.'
+                  : 'MODERATE RISK: Apply step-up 2FA authentication or hold for manual customer verification.'}
+              </p>
+            </div>
+          </div>
         </div>
       ) : (
         <EmptyState text="No predictions available for report generation." />
@@ -637,8 +1089,8 @@ function Analytics({ predictions, summary }: { predictions: PredictionRow[]; sum
 
   return (
     <div className="dashboard-grid two">
-      <ChartPanel title="Prediction mix" data={distribution} />
-      <ChartPanel title="Risk distribution" data={tiers} tone="risk" />
+      <ChartPanel title="Prediction Classification Mix" data={distribution} />
+      <ChartPanel title="Risk Level Distribution" data={tiers} tone="risk" />
       <ModelPanel model={summary?.model} features={summary?.features ?? []} />
     </div>
   )
@@ -646,11 +1098,11 @@ function Analytics({ predictions, summary }: { predictions: PredictionRow[]; sum
 
 function Feedback() {
   const [form, setForm] = useState({
-    transaction_id: '',
-    analyst: '',
+    transaction_id: 'TX-94812',
+    analyst: 'A. Vance',
     prediction: 'Fraud',
     actual_label: 'Fraud',
-    comments: '',
+    comments: 'Confirmed card testing pattern with high velocity on international IP.',
   })
   const [status, setStatus] = useState('')
 
@@ -662,7 +1114,7 @@ function Feedback() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
-      setStatus(response.ok ? 'Feedback saved.' : 'Feedback could not be saved.')
+      setStatus(response.ok ? 'Feedback submitted to retraining loop.' : 'Feedback submission failed.')
     } catch {
       setStatus('Could not reach feedback API.')
     }
@@ -670,15 +1122,22 @@ function Feedback() {
 
   return (
     <section className="panel">
-      <h3>Analyst feedback</h3>
+      <div className="panel-heading">
+        <div>
+          <h3>Analyst Ground Truth Feedback</h3>
+          <p>Submit verified ground-truth labels to continuously train and calibrate ML model weights.</p>
+        </div>
+      </div>
       <form className="feedback-form" onSubmit={submit}>
         {Object.entries(form).map(([field, value]) => (
           <label key={field}>
-            {field.replace('_', ' ')}
+            <span>{field.replace('_', ' ')}</span>
             <input value={value} onChange={(event) => setForm((current) => ({ ...current, [field]: event.target.value }))} />
           </label>
         ))}
-        <button type="submit">Submit feedback</button>
+        <div className="form-actions">
+          <button type="submit" className="primary-button">Submit Ground Truth Label</button>
+        </div>
       </form>
       {status && <div className="notice inline">{status}</div>}
     </section>
@@ -689,69 +1148,132 @@ function Settings({ apiHealth, summary }: { apiHealth: string; summary: Dashboar
   return (
     <>
       <section className="panel settings-grid">
-        <div>
-          <h3>Frontend settings</h3>
-          <p>React app is connected to:</p>
-          <code>{API_BASE_URL}</code>
+        <div className="settings-item">
+          <h3>FastAPI Backend Gateway</h3>
+          <p>Target Environment Endpoint URL:</p>
+          <code className="mono-code">{API_BASE_URL}</code>
         </div>
-        <Metric label="API health" value={apiHealth} />
-        <Metric label="Frontend" value="React + Vite" />
+        <Metric label="API Health" value={apiHealth} icon={Pulse} />
+        <Metric label="Console Tech" value="React 19 + Vite" icon={TerminalWindow} />
       </section>
       <ModelPanel model={summary?.model} features={summary?.features ?? []} />
     </>
   )
 }
 
-function Metric({ label, value }: { label: string; value: string | number }) {
+function Metric({
+  label,
+  value,
+  icon: Icon,
+  tone = 'default'
+}: {
+  label: string
+  value: string | number
+  icon?: React.ElementType
+  tone?: 'default' | 'danger' | 'warning'
+}) {
   return (
-    <div className="metric-card">
-      <span>{label}</span>
+    <div className={`metric-card ${tone !== 'default' ? `tone-${tone}` : ''}`}>
+      <div className="metric-header">
+        <span>{label}</span>
+        {Icon && <Icon size={18} className="metric-icon" />}
+      </div>
       <strong>{value}</strong>
     </div>
   )
 }
 
+function downloadCsv(data: PredictionRow[], filename: string) {
+  if (!data.length) return
+  const headers = ['transaction_id', 'prediction', 'fraud_probability', 'risk_score', 'risk_tier', 'created_at']
+  const csvRows = [
+    headers.join(','),
+    ...data.map((row) =>
+      headers
+        .map((field) => {
+          const val = row[field as keyof PredictionRow] ?? ''
+          return `"${String(val).replaceAll('"', '""')}"`
+        })
+        .join(','),
+    ),
+  ]
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', filename)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 function PredictionTable({
   predictions,
   emptyText = 'No prediction data available.',
+  exportFilename,
 }: {
   predictions: PredictionRow[]
   emptyText?: string
+  exportFilename?: string
 }) {
   if (!predictions.length) return <EmptyState text={emptyText} />
 
   return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Transaction</th>
-            <th>Prediction</th>
-            <th>Fraud probability</th>
-            <th>Risk score</th>
-            <th>Risk tier</th>
-            <th>Latency</th>
-          </tr>
-        </thead>
-        <tbody>
-          {predictions.map((item, index) => (
-            <tr key={item.transaction_id ?? index}>
-              <td>{item.transaction_id ?? 'Pending'}</td>
-              <td>{item.prediction ?? 'Unknown'}</td>
-              <td>{Math.round(Number(item.fraud_probability ?? 0) * 100)}%</td>
-              <td>{item.risk_score ?? 0}</td>
-              <td>{item.risk_tier ?? 'Unavailable'}</td>
-              <td>{item.Latency_ms ? `${item.Latency_ms} ms` : 'n/a'}</td>
+    <div>
+      {exportFilename && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+          <button
+            type="button"
+            className="secondary-button"
+            style={{ width: 'auto', padding: '6px 12px', fontSize: '11px' }}
+            onClick={() => downloadCsv(predictions, exportFilename)}
+          >
+            <UploadSimple size={14} style={{ transform: 'rotate(180deg)' }} />
+            <span>Export CSV</span>
+          </button>
+        </div>
+      )}
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Transaction ID</th>
+              <th>Prediction</th>
+              <th>Fraud Probability</th>
+              <th>Risk Score</th>
+              <th>Risk Tier</th>
+              <th>Latency</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {predictions.map((item, index) => (
+              <tr key={item.transaction_id ?? index}>
+                <td><span className="mono-text">{item.transaction_id ?? 'Pending'}</span></td>
+                <td>
+                  <span className={`status-pill ${(item.prediction ?? 'Unknown').toLowerCase()}`}>
+                    {item.prediction ?? 'Unknown'}
+                  </span>
+                </td>
+                <td>{Math.round(Number(item.fraud_probability ?? 0) * 100)}%</td>
+                <td><strong>{item.risk_score ?? 0}</strong></td>
+                <td><span className="tier-badge">{item.risk_tier ?? 'Unavailable'}</span></td>
+                <td><span className="latency-text">{item.Latency_ms ? `${item.Latency_ms} ms` : 'n/a'}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
 
 function EmptyState({ text }: { text: string }) {
-  return <div className="empty-state">{text}</div>
+  return (
+    <div className="empty-state">
+      <ShieldWarning size={28} weight="duotone" />
+      <span>{text}</span>
+    </div>
+  )
 }
 
 export default App

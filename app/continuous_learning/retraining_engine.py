@@ -7,7 +7,8 @@ from datetime import datetime
 from app.continuous_learning.model_registry import ModelRegistry
 from app.continuous_learning.version_manager import VersionManager
 from app.database.connection import MongoDBConnection
-from app.features.feature_engineering import FeatureEngineering
+from app.database.repository import FraudRepository
+from app.features.feature_pipeline import FeaturePipeline
 from app.ml.preprocessing import DataPreprocessor
 from app.ml.trainer import EnterpriseFraudTrainer
 
@@ -19,9 +20,10 @@ class RetrainingEngine:
     """
     def __init__(self):
         self.db = MongoDBConnection().connect()
+        self.repository = FraudRepository(self.db)
 
     def feedback_count(self):
-        return self.db["analyst_feedback"].count_documents({})
+        return self.repository.count_feedback()
 
     def should_retrain(self, threshold=10):
         # We allow a lower threshold (e.g. 10) for continuous trigger
@@ -29,7 +31,7 @@ class RetrainingEngine:
 
     def load_feedback_dataset(self):
         # 1. Fetch analyst feedback records
-        feedback_records = list(self.db["analyst_feedback"].find({}, {"_id": 0}))
+        feedback_records = self.repository.get_feedback()
         if not feedback_records:
             return pd.DataFrame()
             
@@ -39,7 +41,7 @@ class RetrainingEngine:
             tx_id = fb.get("transaction_id")
             actual_label = fb.get("actual_label")
             
-            tx = self.db["transactions"].find_one({"transaction_id": tx_id}, {"_id": 0})
+            tx = self.repository.get_transaction_by_id(tx_id)
             if tx and "request" in tx:
                 # Merge transaction features with the actual label
                 data = tx["request"].copy()
@@ -74,13 +76,11 @@ class RetrainingEngine:
             print("Loading historical dataset for reference...")
             base_df = pd.read_csv(base_path)
             
-            # Enrich base_df using FeatureEngineering
-            engineer = FeatureEngineering(base_df)
-            enriched_base = engineer.run_pipeline()
+            # Enrich base_df using FeaturePipeline
+            enriched_base = FeaturePipeline.process(base_df)
             
             # Prepare feedback df to match the exact same feature pipeline format
-            fb_engineer = FeatureEngineering(feedback_df)
-            enriched_fb = fb_engineer.run_pipeline()
+            enriched_fb = FeaturePipeline.process(feedback_df)
             
             # Ensure Class is present in feedback dataframe
             if "Class" not in enriched_fb.columns:

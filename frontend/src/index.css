@@ -1,18 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300..800;1,300..800&family=Space+Grotesk:wght@300..700&display=swap');
+
 :root {
-  --bg: #0b0f14;
-  --surface: #111827;
-  --sidebar: #0f172a;
-  --input: #0b1220;
-  --nav-active: #1f2937;
-  --border: rgba(148, 163, 184, 0.22);
-  --text: #d1d5db;
+  --bg: #05070a;
+  --surface: #0a0e14;
+  --surface-hover: #101620;
+  --surface-elevated: #141c28;
+  --sidebar: #06090e;
+  --input: #040609;
+  --nav-active: rgba(230, 25, 25, 0.12);
+  --nav-active-border: #e61919;
+  --border: #1e293b;
+  --border-subtle: #0f172a;
+  --border-hover: #334155;
+  --text: #94a3b8;
   --text-strong: #f8fafc;
-  --muted: #94a3b8;
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --muted: #64748b;
+  --accent: #e61919;
+  --accent-glow: rgba(230, 25, 25, 0.25);
+  --danger: #ff2a2a;
+  --danger-glow: rgba(255, 42, 42, 0.2);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --terminal-green: #4af626;
+  --shadow: 0 0 0 1px var(--border);
+  --shadow-glow: 0 0 30px -5px rgba(230, 25, 25, 0.2);
+  
+  font-family: 'JetBrains Mono', monospace;
   color: var(--text);
-  background: var(--bg);
+  background-color: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -21,28 +36,66 @@
 
 * {
   box-sizing: border-box;
+  border-radius: 0 !important; /* Industrial Brutalism hard rule: 0px border radius */
 }
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+/* Simulated CRT Scanline Filter */
+body::before {
+  content: " ";
+  display: block;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 999;
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+  opacity: 0.6;
 }
 
 a {
   color: inherit;
+  text-decoration: none;
 }
 
-h1,
-h2,
-h3,
-h4,
+h1, h2, h3, h4 {
+  font-family: 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  margin-top: 0;
+}
+
 p {
   margin-top: 0;
 }
 
-button,
-input,
-select {
+button, input, select {
+  font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ff2a2a;
 }

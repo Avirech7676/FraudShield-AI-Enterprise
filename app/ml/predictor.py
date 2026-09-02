@@ -104,15 +104,19 @@ class FraudPredictor:
                     "Input must be DataFrame, Series or Dictionary."
                 )
 
-            from app.features.feature_engineering import FeatureEngineering
-            engineer = FeatureEngineering(transaction)
-            enriched_df = engineer.run_pipeline()
+            from app.features.feature_pipeline import FeaturePipeline
+            enriched_df = FeaturePipeline.process(transaction)
             if "Class" in enriched_df.columns:
                 enriched_df = enriched_df.drop(columns=["Class"])
 
-            transformed = self.preprocessor.transform(
-                enriched_df
-            )
+            # Use DataPreprocessor wrapper instance to handle feature column casting
+            from app.ml.preprocessing import DataPreprocessor
+            dp = DataPreprocessor()
+            dp.preprocessor = self.preprocessor
+
+            transformed = dp.transform(enriched_df)
+
+            return transformed
 
             return transformed
 
@@ -121,7 +125,7 @@ class FraudPredictor:
             logger.exception(
                 f"Preprocessing Failed : {e}"
             )
-            raise
+            raise ValueError(f"Preprocessing internal error: {e}") from e
     ############################################################
 
     def recommended_action(
@@ -186,8 +190,12 @@ class FraudPredictor:
         start = time.perf_counter()
 
         try:
-
-            X = self.preprocess(transaction)
+            # Ensure float conversion errors are caught with explicit diagnostic
+            try:
+                X = self.preprocess(transaction)
+            except ValueError as ve:
+                logger.error(f"Preprocess ValueError: {ve}")
+                raise
 
             probability = float(
                 self.model.predict_proba(X)[0][1]
@@ -255,7 +263,7 @@ class FraudPredictor:
                 f"Prediction Failed : {e}"
             )
 
-            raise
+            raise ValueError(f"Predict internal error: {e}") from e
 
     ############################################################
 

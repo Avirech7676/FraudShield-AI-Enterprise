@@ -12,9 +12,24 @@ class FeatureEngineering:
         self.df = df.copy()
 
     def handle_missing_values(self):
-        # Fill numeric missing values with median, categorical with mode/default
+        self.df = self.df.replace([np.inf, -np.inf], np.nan)
+
+        for column in self.df.columns:
+            if self.df[column].dtype == object or str(self.df[column].dtype) == "string":
+                self.df[column] = self.df[column].replace("", np.nan)
+
+        # Fill numeric missing values with median, falling back to 0 for single-row/all-null input.
         numeric = self.df.select_dtypes(include=[np.number]).columns
-        self.df[numeric] = self.df[numeric].fillna(self.df[numeric].median())
+        if len(numeric):
+            self.df[numeric] = self.df[numeric].fillna(self.df[numeric].median()).fillna(0)
+
+        categorical = self.df.select_dtypes(include=["object", "category", "string"]).columns
+        for column in categorical:
+            mode = self.df[column].mode(dropna=True)
+            fallback = mode.iloc[0] if not mode.empty else "Standard"
+            # Ensure no None string exists
+            self.df[column] = self.df[column].fillna(fallback).astype(str).replace("None", fallback)
+
         return self.df
 
     def remove_duplicates(self):
@@ -28,11 +43,29 @@ class FeatureEngineering:
     def enrich_dataset(self):
         """
         Enriches the V1-V28 PCA dataset with 43 semantic features.
-        If features are already present (e.g. from prediction API requests), does nothing.
+        If features are already present (e.g. from prediction API requests), fills missing defaults.
         """
         required_cols = ["Device_Trust_Score", "VPN_Detection", "IP_Reputation"]
         if all(col in self.df.columns for col in required_cols):
-            # Already has rich features (from inference)
+            # Ensure boolean and categorical fields have default values if omitted
+            defaults = {
+                "Currency": "USD", "Merchant": "Amazon", "Merchant_Category": "Retail",
+                "Payment_Type": "Credit", "Card_Present": False, "Chip_Used": False,
+                "Contactless": False, "International": False, "Customer_Age": 30,
+                "Customer_Segment": "Standard", "KYC_Level": "Level_2", "Customer_Lifetime": 1.0,
+                "Avg_Spend": 100.0, "Monthly_Spend": 500.0, "Credit_Limit": 5000.0,
+                "Browser": "Chrome", "Operating_System": "Windows", "Emulator_Detection": False,
+                "Rooted_Device": False, "Jailbreak_Detection": False, "VPN_Detection": False,
+                "TOR_Detection": False, "Country": "US", "Merchant_Country": "US",
+                "Transactions_Last_Hour": 0, "Transactions_Last_Day": 1, "Velocity": 150.0,
+                "Time_Since_Last_Transaction": 3600.0, "Merchant_Diversity": 1,
+                "Location_Jump": False, "Device_Change": False, "Password_Reset": False,
+                "Login_Failure_Count": 0, "Merchant_Risk": 20.0, "Merchant_Chargeback_Rate": 0.5,
+                "Previous_Fraud": 0
+            }
+            for k, v in defaults.items():
+                if k not in self.df.columns or self.df[k].isnull().any():
+                    self.df[k] = v
             return self.df
 
         print("Enriching dataset with 43 semantic features...")
@@ -185,6 +218,8 @@ class FeatureEngineering:
         self.handle_missing_values()
         self.remove_duplicates()
         self.enrich_dataset()
+        self.handle_missing_values()
         self.df = self.select_ml_features()
+        self.handle_missing_values()
         print(f"Feature Pipeline Completed. Output shape: {self.df.shape}")
         return self.df

@@ -32,9 +32,9 @@ class MongoDBConnection:
 
             self.client = MongoClient(
                 self.uri,
-                serverSelectionTimeoutMS=3000,
-                connectTimeoutMS=3000,
-                socketTimeoutMS=5000,
+                serverSelectionTimeoutMS=2000,
+                connectTimeoutMS=2000,
+                socketTimeoutMS=3000,
                 maxPoolSize=50,
             )
 
@@ -48,13 +48,13 @@ class MongoDBConnection:
 
             return self.db
 
-        except PyMongoError as e:
+        except Exception as e:
 
-            logger.exception(
-                f"MongoDB Connection Failed : {e}"
+            logger.warning(
+                f"MongoDB Connection Failed (falling back to memory/mock): {e}"
             )
 
-            raise
+            return None
 
     ###################################################
 

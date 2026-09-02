@@ -6,7 +6,7 @@ from app.auth.jwt_handler import JWTHandler
 from app.auth.password_utils import PasswordManager
 from app.database.connection import MongoDBConnection
 from app.database.repository import FraudRepository
-from app.logging.logger import EnterpriseLogger
+from app.config.logging_config import logger
 
 router = APIRouter()
 
@@ -25,7 +25,7 @@ def login(request: LoginRequest):
 
     if user is None:
 
-        EnterpriseLogger.warning(
+        logger.warning(
 
             f"Unknown user {request.username}"
 
@@ -49,7 +49,7 @@ def login(request: LoginRequest):
 
     if not valid:
 
-        EnterpriseLogger.warning(
+        logger.warning(
 
             f"Wrong password {request.username}"
 
@@ -71,8 +71,8 @@ def login(request: LoginRequest):
 
     )
 
-    EnterpriseLogger.info(
-
+    logger.info(
+        
         f"{request.username} logged in"
 
     )

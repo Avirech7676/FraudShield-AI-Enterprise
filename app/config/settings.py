@@ -79,6 +79,22 @@ class Settings:
         "preprocessor.joblib"
     )
 
+    # ---------------------------------------------------------------------------
+    # Explicit path aliases — centralised references for all modules
+    # Use these constants everywhere instead of hardcoding filenames.
+    # ---------------------------------------------------------------------------
+    @property
+    def BEST_MODEL_PATH(self) -> str:
+        return self.BEST_MODEL
+
+    @property
+    def PRODUCTION_MODEL_PATH(self) -> str:
+        return self.PRODUCTION_MODEL
+
+    @property
+    def PREPROCESSOR_PATH(self) -> str:
+        return self.PREPROCESSOR
+
     #####################################################
     # Dataset
     #####################################################

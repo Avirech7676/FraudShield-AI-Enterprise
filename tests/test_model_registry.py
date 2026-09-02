@@ -1,4 +1,4 @@
-from app.ml.test_model_registry import ModelRegistry
+from app.ml.model_registry import ModelRegistry
 
 
 def test_registry():

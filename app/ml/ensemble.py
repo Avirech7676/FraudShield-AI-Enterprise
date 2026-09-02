@@ -5,6 +5,16 @@ from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.linear_model import LogisticRegression
 
+
+def clean_matrix(X):
+    return np.nan_to_num(
+        np.asarray(X),
+        nan=0.0,
+        posinf=0.0,
+        neginf=0.0
+    )
+
+
 class AutoencoderAnomalyDetector:
     def __init__(self, hidden_layer_sizes=(32, 16, 32), random_state=42):
         self.model = MLPRegressor(
@@ -20,6 +30,7 @@ class AutoencoderAnomalyDetector:
 
     def fit(self, X):
         # Fit only on normal data
+        X = clean_matrix(X)
         self.model.fit(X, X)
         reconstruction = self.model.predict(X)
         errors = np.mean((X - reconstruction) ** 2, axis=1)
@@ -27,6 +38,7 @@ class AutoencoderAnomalyDetector:
         return self
 
     def score_anomaly(self, X):
+        X = clean_matrix(X)
         reconstruction = self.model.predict(X)
         errors = np.mean((X - reconstruction) ** 2, axis=1)
         scores = (errors / self.max_val) * 50
@@ -38,6 +50,7 @@ class IsolationForestAnomaly:
         self.model = IsolationForest(n_estimators=100, random_state=random_state, n_jobs=-1)
 
     def fit(self, X):
+        X = clean_matrix(X)
         # Downsample if dataset is too large to fit fast
         if len(X) > 50000:
             idx = np.random.choice(len(X), 50000, replace=False)
@@ -47,6 +60,7 @@ class IsolationForestAnomaly:
         return self
 
     def score_anomaly(self, X):
+        X = clean_matrix(X)
         scores = -self.model.decision_function(X)
         min_val = -0.3
         max_val = 0.3
@@ -59,6 +73,7 @@ class LOFAnomaly:
         self.model = LocalOutlierFactor(n_neighbors=20, novelty=True, n_jobs=-1)
 
     def fit(self, X):
+        X = clean_matrix(X)
         # LOF is O(N^2) complexity, downsample to fit fast
         if len(X) > 15000:
             idx = np.random.choice(len(X), 15000, replace=False)
@@ -68,6 +83,7 @@ class LOFAnomaly:
         return self
 
     def score_anomaly(self, X):
+        X = clean_matrix(X)
         scores = -self.model.decision_function(X)
         min_val = -1.5
         max_val = 1.5
@@ -126,6 +142,7 @@ class EnterpriseStackingClassifier:
         return self
 
     def predict_proba(self, X):
+        X = clean_matrix(X)
         meta_features = []
         for name, model in self.base_models.items():
             meta_features.append(model.predict_proba(X)[:, 1])

@@ -48,9 +48,9 @@ class DataPreprocessor:
             include=["int64", "float64", "bool", "int32", "float32"]
         ).columns.tolist()
 
-        # Identify categorical columns (object, category)
+        # Identify categorical columns (object, category, string)
         self.categorical_columns = X.select_dtypes(
-            include=["object", "category"]
+            include=["object", "category", "string"]
         ).columns.tolist()
 
         return self.numeric_columns, self.categorical_columns
@@ -86,7 +86,26 @@ class DataPreprocessor:
         return X_train
 
     def transform(self, X_test):
-        return self.preprocessor.transform(X_test)
+        num_cols = getattr(self.preprocessor, "transformers_", [("numeric", None, [])])[0][2]
+        cat_cols = getattr(self.preprocessor, "transformers_", [("categorical", None, [])])[1][2] if len(getattr(self.preprocessor, "transformers_", [])) > 1 else []
+
+        # Force exact column ordering as fitted in ColumnTransformer
+        all_cols = list(num_cols) + list(cat_cols)
+        X_transformed = pd.DataFrame(index=X_test.index)
+
+        for col in num_cols:
+            if col in X_test.columns:
+                X_transformed[col] = pd.to_numeric(X_test[col], errors="coerce").fillna(0.0).astype(float)
+            else:
+                X_transformed[col] = 0.0
+
+        for col in cat_cols:
+            if col in X_test.columns:
+                X_transformed[col] = X_test[col].astype(str).replace(["None", "nan", "NoneType", "np.nan"], "Unknown")
+            else:
+                X_transformed[col] = "Unknown"
+
+        return self.preprocessor.transform(X_transformed[all_cols])
 
     def balance_dataset(self, X_train, y_train):
         print("\nApplying SMOTE...")

@@ -9,6 +9,7 @@ import numpy as np
 
 from app.config.settings import settings
 from app.config.logging_config import logger
+from app.features.feature_engineering import FeatureEngineering
 from app.ml.ensemble import EnterpriseStackingClassifier
 
 class SHAPExplainer:
@@ -61,8 +62,18 @@ class SHAPExplainer:
             return {"top_factors": [], "explanation_text": "SHAP Explainer not initialized."}
 
         try:
-            # 1. Preprocess the raw transaction input
-            processed_arr = self.preprocessor.transform(raw_df)
+            # 1. Preprocess the raw transaction input using DataPreprocessor wrapper
+            engineered_df = FeatureEngineering(raw_df).run_pipeline()
+            from app.ml.preprocessing import DataPreprocessor
+            dp = DataPreprocessor()
+            dp.preprocessor = self.preprocessor
+            processed_arr = dp.transform(engineered_df)
+            processed_arr = np.nan_to_num(
+                processed_arr,
+                nan=0.0,
+                posinf=0.0,
+                neginf=0.0
+            )
             
             # 2. Get feature names from preprocessor
             try:

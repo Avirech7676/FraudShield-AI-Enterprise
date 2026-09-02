@@ -7,6 +7,8 @@ from app.notifications.webhook_service import WebhookService
 from app.config.logging_config import logger
 
 
+import time
+
 class NotificationManager:
     history = []
     templates = {
@@ -33,7 +35,7 @@ class NotificationManager:
         return item
 
     @classmethod
-    def _send_with_retry(cls, channel, sender, message, priority, attempts=3):
+    def _send_with_retry(cls, channel, sender, message, priority, attempts=3, backoff_factor=0.2):
         last_error = None
         for attempt in range(1, attempts + 1):
             try:
@@ -43,11 +45,14 @@ class NotificationManager:
             except Exception as exc:
                 last_error = str(exc)
                 logger.warning(
-                    "Notification attempt failed | channel=%s | attempt=%s | error=%s",
+                    "Notification attempt failed | channel=%s | attempt=%s/%s | error=%s",
                     channel,
                     attempt,
+                    attempts,
                     last_error
                 )
+                if attempt < attempts:
+                    time.sleep(backoff_factor * (2 ** (attempt - 1)))
 
         cls._record(channel, priority, message, False, last_error)
         logger.error("Notification failed | channel=%s | error=%s", channel, last_error)

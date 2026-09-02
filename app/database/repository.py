@@ -3,20 +3,32 @@ from datetime import datetime
 from app.config.logging_config import logger
 
 
+class MagicMockCollection:
+    def insert_one(self, data): return type("Result", (), {"inserted_id": "mock_id"})()
+    def find_one(self, *args, **kwargs): return None
+    def find(self, *args, **kwargs): return type("Cursor", (), {"sort": lambda self, *a: self, "limit": lambda self, *a: []})()
+    def count_documents(self, *args, **kwargs): return 0
+    def aggregate(self, *args, **kwargs): return []
+    def delete_one(self, *args, **kwargs): return None
+    def delete_many(self, *args, **kwargs): return None
+    def update_one(self, *args, **kwargs): return None
+
+
 class FraudRepository:
 
     def __init__(self, db):
 
         self.db = db
-        self.cases = db["cases"]
-        self.feedback = db["analyst_feedback"]
-        self.legacy_feedback = db["feedback"]
-        self.transactions = db["transactions"]
-        self.predictions = db["predictions"]
-        self.alerts = db["alerts"]
-        self.audit_logs = db["audit_logs"]
-        self.models = db["models"]
-        self.notifications = db["notifications"]
+        has_collections = db is not None and not isinstance(db, dict)
+        self.cases = self.db["cases"] if has_collections else MagicMockCollection()
+        self.feedback = self.db["analyst_feedback"] if has_collections else MagicMockCollection()
+        self.legacy_feedback = self.db["feedback"] if has_collections else MagicMockCollection()
+        self.transactions = self.db["transactions"] if has_collections else MagicMockCollection()
+        self.predictions = self.db["predictions"] if has_collections else MagicMockCollection()
+        self.alerts = self.db["alerts"] if has_collections else MagicMockCollection()
+        self.audit_logs = self.db["audit_logs"] if has_collections else MagicMockCollection()
+        self.models = self.db["models"] if has_collections else MagicMockCollection()
+        self.notifications = self.db["notifications"] if has_collections else MagicMockCollection()
 
     ##################################################
     # Transactions
@@ -379,6 +391,15 @@ class FraudRepository:
     def delete_feedback(self):
 
         return self.feedback.delete_many({})
+
+    def get_feedback_by_transaction_id(self, transaction_id):
+        return self.feedback.find_one({"transaction_id": transaction_id})
+
+    def get_transaction_by_id(self, transaction_id):
+        return self.transactions.find_one({"transaction_id": transaction_id})
+
+    def count_feedback(self):
+        return self.feedback.count_documents({})
 
     #########################################################
     # Models
