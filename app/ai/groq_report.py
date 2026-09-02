@@ -154,6 +154,13 @@ class EnterpriseFraudReporter:
                 "Recommended action: Freeze account and require Multi-Factor Authentication."
             )
 
+    def health(self):
+        return {
+            "status": "healthy" if self.client else "simulation",
+            "provider": "Groq" if self.client else "Simulation",
+            "api_configured": bool(self.api_key)
+        }
+
     def generate_report(self, prediction_output, risk_output):
         transaction_data = {
             "Amount": prediction_output.get("Amount", 0),

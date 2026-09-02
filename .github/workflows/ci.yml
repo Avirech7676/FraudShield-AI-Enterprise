@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Pytest & Coverage
         run: |
-          pytest --cov=app
+          pytest tests/ --cov=app
 
       - name: Verify Docker Build
         run: |

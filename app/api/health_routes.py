@@ -6,8 +6,9 @@ router = APIRouter()
 @router.get("/")
 def home():
     return {
-        "Application": "FraudShield AI Enterprise",
-        "Status": "Running"
+        "application": "FraudShield AI Enterprise",
+        "version": "2.0",
+        "status": "Running"
     }
 
 
@@ -16,13 +17,15 @@ def health():
     return {
         "status": "healthy",
         "service": "FraudShield AI Enterprise",
-        "version": "2.0"
+        "version": "2.0",
+        "database": "connected"
     }
 
 
 @router.get("/version")
 def version():
     return {
+        "version": "2.0",
         "api": "v2",
         "ml_pipeline": "Enterprise",
         "database": "MongoDB",
