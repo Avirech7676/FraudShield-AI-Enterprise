@@ -4,7 +4,8 @@ import { ClerkProvider } from '@clerk/react'
 import './index.css'
 import App from './App.tsx'
 
-const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const DEFAULT_CLERK_KEY = 'pk_test_ZGFzaGluZy1idXJyby0xODMzLmNsZXJrLmFjY291bnRzLmRldiQ'
+const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || DEFAULT_CLERK_KEY
 const hasClerkKey = clerkPublishableKey?.startsWith('pk_')
 
 createRoot(document.getElementById('root')!).render(
